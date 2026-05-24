@@ -10,19 +10,23 @@ const jwtConfig = {
     cookieOptions: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      // 'none' is required for cross-origin deployments (Vercel frontend → Render backend).
+      // SameSite=Strict silently drops the cookie on cross-site requests, causing /auth/refresh
+      // to always return 401. SameSite=None + Secure=true is the correct combo for cross-origin
+      // httpOnly auth cookies. In development, 'lax' works fine (same-origin localhost).
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/api/v1/auth',
     },
   },
-  // Lightweight session presence cookie — readable by Next.js proxy.js for route redirects.
+  // Lightweight session presence cookie — readable by Next.js middleware for route redirects.
   // Contains no sensitive data. Backend sets/clears it alongside the refresh token.
   session: {
     cookieName: 'nx_session',
     cookieOptions: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     },

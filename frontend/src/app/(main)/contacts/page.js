@@ -117,11 +117,14 @@ function ContactsTab({ searchFilter }) {
   const [blockUser]                = useBlockUserMutation();
   const [actionId, setActionId]    = useState(null); // userId currently being acted on
 
-  const contacts = (data?.data ?? []).map((c) => ({
-    ...c,
-    name: c.displayName || c.username,
-    status: presences[c.id?.toString()] ?? c.status ?? 'offline',
-  }));
+  const contactsData = data?.data?.contacts ?? data?.contacts ?? data?.data ?? [];
+  const contacts = Array.isArray(contactsData)
+    ? contactsData.map((c) => ({
+        ...c,
+        name: c.displayName || c.username,
+        status: presences[c.id?.toString()] ?? c.status ?? 'offline',
+      }))
+    : [];
 
   const filtered = searchFilter
     ? contacts.filter(
