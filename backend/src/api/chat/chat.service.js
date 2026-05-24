@@ -4,6 +4,7 @@ const { AppError }       = require('../../core/errors/AppError');
 const { ERROR_CODES }    = require('../../core/errors/error.codes');
 const { CHAT_TYPES }     = require('../../database/models/Chat.model');
 const { CHAT_EVENTS }    = require('../../shared/constants/events');
+const { toChatDTO }      = require('./chat.dto');
 const { parsePagination, buildPaginationMeta } = require('../../shared/utils/pagination');
 
 /** Lazy getIO — avoids circular import at module-load time. */
@@ -35,6 +36,19 @@ async function getOrCreateDirectChat(currentUserId, targetUserId) {
     ],
     createdBy: currentUserId,
   });
+
+  // Notify the target user in realtime so their sidebar updates without
+  // a refresh. We re-fetch the chat fully populated (same fields as
+  // findUserChats) and shape the DTO from the target's perspective.
+  try {
+    const populated = await chatRepository.findByIdPopulated(chat._id);
+    if (populated) {
+      const targetDTO = toChatDTO(populated, targetUserId);
+      tryEmit(`user:${targetUserId.toString()}`, CHAT_EVENTS.NEW_CHAT, { chat: targetDTO });
+    }
+  } catch {
+    // Socket emission is best-effort — never block the HTTP response
+  }
 
   return { chat, isNew: true };
 }

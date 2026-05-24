@@ -9,6 +9,7 @@ import { selectNotificationUnreadCount } from '@/features/notification/store/not
 import { cn } from '@/lib/utils';
 import { CHAT_FILTERS } from '@/constants';
 import { ChatListItem } from './chat-list-item';
+import { NewConversationModal } from './new-conversation-modal';
 import { Logo, UserAvatar } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,11 +37,12 @@ import {
 } from 'lucide-react';
 
 export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter]           = useState('all');
-  const { theme, setTheme }           = useTheme();
-  const router                        = useRouter();
-  const [logout]                      = useLogoutMutation();
+  const [searchQuery,   setSearchQuery]   = useState('');
+  const [filter,        setFilter]        = useState('all');
+  const [newChatOpen,   setNewChatOpen]   = useState(false);
+  const { theme, setTheme }              = useTheme();
+  const router                           = useRouter();
+  const [logout]                         = useLogoutMutation();
 
   // Real authenticated user — replaces mock `currentUser`
   const currentUser           = useSelector((s) => s.auth.user);
@@ -222,13 +224,16 @@ export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
       </ScrollArea>
 
       <div className="p-4 border-t border-sidebar-border">
-        <Link href="/contacts">
-          <Button className="w-full gradient-primary text-white border-0 gap-2">
-            <Plus className="h-4 w-4" />
-            New Conversation
-          </Button>
-        </Link>
+        <Button
+          className="w-full gradient-primary text-white border-0 gap-2"
+          onClick={() => setNewChatOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          New Conversation
+        </Button>
       </div>
+
+      <NewConversationModal open={newChatOpen} onOpenChange={setNewChatOpen} />
     </div>
   );
 }

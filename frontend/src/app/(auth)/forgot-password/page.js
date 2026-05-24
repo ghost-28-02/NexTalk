@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
                 you&apos;ll receive a reset link shortly.
               </p>
               <p className="text-xs text-muted-foreground pt-1">
-                (During development: check the backend console for the reset URL)
+                The link expires in 1 hour.
               </p>
             </div>
             <Button variant="outline" className="w-full" onClick={handleResend}>

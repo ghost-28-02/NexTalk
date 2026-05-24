@@ -33,6 +33,7 @@ import {
   messageDeleted,
   unreadSynced,
   chatUpdatedFromBackground,
+  chatAdded,
   participantProfileUpdated,
   selectActiveChatId,
 } from '../store/chatSlice';
@@ -139,6 +140,16 @@ export function useChatSocket() {
       dispatch(chatUpdatedFromBackground({ chatId, lastMessage }));
     };
 
+    // ── New conversation created by the other user ────────────────────────
+    // Server emits chat:new_chat to `user:{id}` when another user opens a
+    // direct chat with us for the first time. Payload is the full Chat DTO
+    // shaped from our perspective. chatAdded deduplicates by id, so this
+    // is safe even if we somehow already have the chat in state.
+    const onNewChat = ({ chat }) => {
+      if (!chat) return;
+      dispatch(chatAdded(chat));
+    };
+
     // ── Reconnect — resync stale unread counts from the server ────────────
     // If the user's socket dropped and messages arrived while it was down,
     // the in-memory unread counts are stale. Re-fetching the chat list
@@ -182,6 +193,7 @@ export function useChatSocket() {
     socket.on(CHAT_EVENTS.MESSAGE_DELETED,   onMessageDeleted);
     socket.on(CHAT_EVENTS.UNREAD_UPDATED,    onUnreadUpdated);
     socket.on(CHAT_EVENTS.CHAT_UPDATED,      onChatUpdated);
+    socket.on(CHAT_EVENTS.NEW_CHAT,          onNewChat);
     socket.on(USER_EVENTS.PROFILE_UPDATED,   onProfileUpdated);
     socket.on('connect',                     onReconnect);
 
@@ -195,6 +207,7 @@ export function useChatSocket() {
       socket.off(CHAT_EVENTS.MESSAGE_DELETED,   onMessageDeleted);
       socket.off(CHAT_EVENTS.UNREAD_UPDATED,    onUnreadUpdated);
       socket.off(CHAT_EVENTS.CHAT_UPDATED,      onChatUpdated);
+      socket.off(CHAT_EVENTS.NEW_CHAT,          onNewChat);
       socket.off(USER_EVENTS.PROFILE_UPDATED,   onProfileUpdated);
       socket.off('connect',                     onReconnect);
     };

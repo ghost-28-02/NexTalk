@@ -15,7 +15,8 @@ export default function VerifyEmailPage() {
   const dispatch = useDispatch();
   const pendingEmail = useSelector(selectPendingEmail);
   const [code, setCode] = useState(['', '', '', '', '', '']);
-  const [resendTimer, setResendTimer] = useState(30);
+  // 60 s matches the backend per-email RESEND_COOLDOWN_MS
+  const [resendTimer, setResendTimer] = useState(60);
   const inputRefs = useRef([]);
   const didVerifyRef = useRef(false);
 
@@ -75,10 +76,20 @@ export default function VerifyEmailPage() {
   const handleResend = async () => {
     try {
       await resend({ email: pendingEmail }).unwrap();
-      setResendTimer(30);
-      toast.success('Verification code resent');
+      setResendTimer(60);
+      toast.success('Verification code resent — check your email');
     } catch (err) {
-      toast.error(err?.data?.message ?? 'Failed to resend code');
+      const code = err?.data?.code;
+      const message = err?.data?.message ?? 'Failed to resend code';
+
+      if (code === 'RESEND_TOO_SOON') {
+        // Server tells us how long to wait — parse "X second(s)" from message
+        const match = message.match(/(\d+)\s+second/);
+        if (match) setResendTimer(parseInt(match[1], 10));
+        toast.error(message);
+      } else {
+        toast.error(message);
+      }
     }
   };
 

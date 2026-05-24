@@ -21,6 +21,12 @@ export const CHAT_EVENTS = Object.freeze({
   REACTION_ADDED:     'chat:reaction_added',
   UNREAD_UPDATED:     'chat:unread_updated',
   CHAT_UPDATED:       'chat:chat_updated',
+  /**
+   * Server → Client: another user started a direct conversation with us.
+   * Payload: { chat: ChatDTO } — shaped from our perspective.
+   * We dispatch chatAdded() so the chat appears in the sidebar immediately.
+   */
+  NEW_CHAT:           'chat:new_chat',
 });
 
 export const PRESENCE_EVENTS = Object.freeze({

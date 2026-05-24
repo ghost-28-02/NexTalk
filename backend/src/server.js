@@ -2,13 +2,14 @@ require('dotenv').config();
 
 const http = require('http');
 const app = require('./app');
-const { validateEnv, connectDatabase, disconnectDatabase, connectCloudinary } = require('./config/index');
+const { validateEnv, connectDatabase, disconnectDatabase, connectCloudinary, validateEmailEnv } = require('./config/index');
 const { initSocketManager } = require('./sockets/socket.manager');
 const { logger } = require('./shared/utils/logger');
 const { appConfig } = require('./config/app.config');
 
 // Fail fast on missing env — catches misconfigured deploys immediately
 validateEnv();
+validateEmailEnv(); // Warns (not throws) if email credentials are absent in production
 
 const httpServer = http.createServer(app);
 

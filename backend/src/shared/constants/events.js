@@ -24,6 +24,13 @@ const CHAT_EVENTS = Object.freeze({
   REACTION_ADDED:     'chat:reaction_added',
   UNREAD_UPDATED:     'chat:unread_updated',   // cross-device unread badge sync
   CHAT_UPDATED:       'chat:chat_updated',     // group name / avatar change
+  /**
+   * Server → Client: emitted to `user:{targetUserId}` when another user
+   * creates a new direct chat with them. Carries the full Chat DTO shaped
+   * from the target user's perspective so the recipient's sidebar updates
+   * instantly without a page refresh.
+   */
+  NEW_CHAT:           'chat:new_chat',
 });
 
 const PRESENCE_EVENTS = Object.freeze({

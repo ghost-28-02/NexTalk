@@ -15,9 +15,14 @@ const {
   verifyTokenHash,
   getRefreshTokenExpiry,
 } = require('../../shared/helpers/token.helper');
-const { generateOTP, getOTPExpiry } = require('../../shared/helpers/otp.helper');
+const { generateOTP, getOTPExpiry, OTP_TTL_MINUTES } = require('../../shared/helpers/otp.helper');
 const { OTP_TYPES } = require('../../database/models/OTP.model');
 const { logger } = require('../../shared/utils/logger');
+const emailService = require('../../shared/email/email.service');
+
+// Per-email OTP resend cooldown: reject if last OTP was created < this many ms ago.
+// This prevents spamming the resend endpoint even within the IP rate-limit window.
+const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
 
 async function createSession(user, meta = {}) {
   const payload = { userId: user._id.toString(), email: user.email };
@@ -83,8 +88,11 @@ async function signup({ firstName, lastName, email, password }) {
     expiresAt: getOTPExpiry(),
   });
 
-  // FUTURE: Dispatch email send job through queue (Bull/BullMQ) here
-  logger.info(`[Auth] Verification OTP for ${email}: ${otp} (dev only — replace with email service)`);
+  // Send verification email — fire-and-forget (non-fatal if email delivery fails)
+  // FUTURE [Queue]: Replace with emailQueue.add('sendVerification', { email, otp, displayName })
+  emailService.sendVerificationEmail(email, otp, displayName).catch((err) =>
+    logger.error('[Auth] Failed to send verification email', { email, err: err.message })
+  );
 
   return user;
 }
@@ -156,6 +164,13 @@ async function verifyEmail({ email, otp }) {
 
   const user = await userRepository.findByEmail(email);
   await userRepository.updateById(user._id, { isEmailVerified: true });
+
+  // Send welcome email after first verification — fire-and-forget
+  // FUTURE [Queue]: emailQueue.add('sendWelcome', { email, displayName: user.displayName })
+  const displayName = user.displayName || user.username;
+  emailService.sendWelcomeEmail(email, displayName).catch((err) =>
+    logger.error('[Auth] Failed to send welcome email', { email, err: err.message })
+  );
 }
 
 async function resendVerification({ email }) {
@@ -164,6 +179,20 @@ async function resendVerification({ email }) {
 
   if (user.isEmailVerified) {
     throw AppError.conflict('Email already verified', ERROR_CODES.EMAIL_ALREADY_VERIFIED);
+  }
+
+  // Per-email cooldown: reject resends within 60 seconds of the last OTP
+  // (IP rate limiting alone is too coarse — rotating proxies bypass it)
+  const latest = await otpRepository.findLatestAny(email, OTP_TYPES.EMAIL_VERIFICATION);
+  if (latest) {
+    const elapsed = Date.now() - new Date(latest.createdAt).getTime();
+    if (elapsed < RESEND_COOLDOWN_MS) {
+      const waitSec = Math.ceil((RESEND_COOLDOWN_MS - elapsed) / 1000);
+      throw AppError.tooManyRequests(
+        `Please wait ${waitSec} second${waitSec !== 1 ? 's' : ''} before requesting a new code`,
+        ERROR_CODES.RESEND_TOO_SOON
+      );
+    }
   }
 
   const otp = generateOTP();
@@ -175,7 +204,12 @@ async function resendVerification({ email }) {
     expiresAt: getOTPExpiry(),
   });
 
-  logger.info(`[Auth] Resent verification OTP for ${email}: ${otp} (dev only)`);
+  // Resend verification email — fire-and-forget
+  // FUTURE [Queue]: emailQueue.add('sendVerification', { email, otp, displayName })
+  const displayName = user.displayName || user.username;
+  emailService.sendVerificationEmail(email, otp, displayName).catch((err) =>
+    logger.error('[Auth] Failed to resend verification email', { email, err: err.message })
+  );
 }
 
 async function forgotPassword({ email }) {
@@ -190,8 +224,13 @@ async function forgotPassword({ email }) {
   await passwordResetTokenRepository.createForUser(user._id, rawToken);
 
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
-  // FUTURE: Send resetUrl via email service (e.g., Resend, Nodemailer)
-  logger.info(`[Auth] Password reset link for ${email}: ${resetUrl} (dev only — replace with email service)`);
+  const displayName = user.displayName || user.username;
+
+  // Send password reset email — fire-and-forget
+  // FUTURE [Queue]: emailQueue.add('sendPasswordReset', { email, resetUrl, displayName })
+  emailService.sendPasswordResetEmail(email, resetUrl, displayName).catch((err) =>
+    logger.error('[Auth] Failed to send password reset email', { email, err: err.message })
+  );
 }
 
 async function resetPassword({ token, newPassword }) {
@@ -212,6 +251,13 @@ async function resetPassword({ token, newPassword }) {
   await refreshTokenRepository.revokeAllForUser(record.userId);
 
   logger.info(`[Auth] Password reset for userId: ${record.userId}`);
+
+  // Send security confirmation email — fire-and-forget
+  // FUTURE [Queue]: emailQueue.add('sendPasswordResetSuccess', { email: userDoc.email, displayName })
+  const displayName = userDoc.displayName || userDoc.username;
+  emailService.sendPasswordResetSuccessEmail(userDoc.email, displayName).catch((err) =>
+    logger.error('[Auth] Failed to send password reset success email', { err: err.message })
+  );
 }
 
 module.exports = {

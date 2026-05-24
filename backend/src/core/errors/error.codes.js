@@ -37,6 +37,10 @@ const ERROR_CODES = Object.freeze({
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   INVALID_OTP: 'INVALID_OTP',
   OTP_EXPIRED: 'OTP_EXPIRED',
+  RESEND_TOO_SOON: 'RESEND_TOO_SOON',   // OTP resend requested before cooldown elapsed
+
+  // Email
+  EMAIL_SEND_FAILED: 'EMAIL_SEND_FAILED', // Transient delivery failure
 
   // File
   FILE_TOO_LARGE: 'FILE_TOO_LARGE',

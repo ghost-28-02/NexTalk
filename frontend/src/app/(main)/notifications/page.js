@@ -1,6 +1,7 @@
 'use client';
 
 import { useDispatch, useSelector } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { MobileNav } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -178,6 +179,7 @@ function EmptyState({ allRead }) {
 
 export default function NotificationsPage() {
   const dispatch = useDispatch();
+  const router = useRouter();
 
   // Slice state — source of truth
   const notifications  = useSelector(selectNotifications);
@@ -196,42 +198,32 @@ export default function NotificationsPage() {
   return (
     <div className="h-screen bg-background flex flex-col">
 
-      {/* Header */}
-      <header className="p-4 border-b border-border bg-card/50 backdrop-blur-sm shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/chat" className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-xl font-bold">Notifications</h1>
-              {unreadCount > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {unreadCount} unread
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isFetching && !isLoaded && (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => markAllRead()}>
-                <Check className="h-4 w-4 mr-2" />
-                Mark all read
-              </Button>
-            )}
-            <Link href="/settings">
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
+      {/* Sticky back header like Edit Profile */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 backdrop-blur-sm px-4 py-3">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="font-semibold text-sm">Notifications</h1>
+          <p className="text-[11px] text-muted-foreground">Manage your notifications</p>
         </div>
-      </header>
+        <div className="ml-auto flex items-center gap-2">
+          {isFetching && !isLoaded && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+          {unreadCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => markAllRead()}>
+              <Check className="h-4 w-4 mr-2" />
+              Mark all read
+            </Button>
+          )}
+          <Link href="/settings">
+            <Button variant="ghost" size="icon">
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="all" className="flex-1 flex flex-col overflow-hidden">

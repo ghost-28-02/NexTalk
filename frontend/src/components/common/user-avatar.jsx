@@ -24,8 +24,10 @@ export function UserAvatar({ user, size = 'md', showStatus = true, className }) 
         xl: 'right-0.5 bottom-0.5',
     };
 
-    const initials = user.name
+    const displayName = user?.name || user?.displayName || user?.username || 'Unknown';
+    const initials = displayName
         .split(' ')
+        .filter(Boolean)
         .map((n) => n[0])
         .join('')
         .toUpperCase();
@@ -33,7 +35,7 @@ export function UserAvatar({ user, size = 'md', showStatus = true, className }) 
     return (
         <div className={cn('relative', className)}>
             <Avatar className={cn(sizeClasses[size], 'border-2 border-background')}>
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={user?.avatar} alt={displayName} />
                 <AvatarFallback className="bg-primary/10 text-primary font-medium">
                     {initials}
                 </AvatarFallback>

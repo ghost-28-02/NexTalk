@@ -6,6 +6,21 @@ class ChatRepository extends BaseRepository {
     super(Chat);
   }
 
+  /**
+   * Fetch a chat by ID with the same population as findUserChats.
+   * Used when emitting chat:new_chat via socket after creation — the
+   * socket payload must carry a fully populated DTO, not raw ObjectIds.
+   */
+  async findByIdPopulated(chatId) {
+    return Chat.findById(chatId)
+      .populate('members.user', 'username displayName avatar status lastSeenAt')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: 'username displayName avatar' },
+      })
+      .lean();
+  }
+
   async findDirectChat(userId1, userId2) {
     return Chat.findOne({
       type: 'direct',

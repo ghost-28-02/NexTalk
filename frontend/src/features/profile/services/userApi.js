@@ -151,6 +151,71 @@ export const userApi = baseApi.injectEndpoints({
       transformResponse: (res) => res.data,
     }),
 
+    // ── GET /users/search?q=&page=&limit= ─────────────────────────────────
+    // Global user search by username / displayName.
+    // Returns: { data: { users: UserSearchDTO[], pagination: {...} } }
+    searchUsers: build.query({
+      query: ({ q, page = 1, limit = 20 }) => ({
+        url: '/users/search',
+        params: { q, page, limit },
+      }),
+    }),
+
+    // ── GET /users/contacts?page=&limit= ──────────────────────────────────
+    // List accepted contacts for the current user.
+    // Returns: { data: ContactDTO[], pagination: {...} }
+    getContacts: build.query({
+      query: ({ page = 1, limit = 30 } = {}) => ({
+        url: '/users/contacts',
+        params: { page, limit },
+      }),
+      providesTags: ['User'],
+    }),
+
+    // ── GET /users/contacts/pending ────────────────────────────────────────
+    // Pending requests: { data: { received: IncomingRequestDTO[], sent: OutgoingRequestDTO[] } }
+    getPendingRequests: build.query({
+      query: () => '/users/contacts/pending',
+      providesTags: ['User'],
+    }),
+
+    // ── POST /users/contacts/request { userId } ────────────────────────────
+    sendContactRequest: build.mutation({
+      query: (userId) => ({ url: '/users/contacts/request', method: 'POST', body: { userId } }),
+      invalidatesTags: ['User'],
+    }),
+
+    // ── POST /users/contacts/accept { userId } ─────────────────────────────
+    acceptContactRequest: build.mutation({
+      query: (userId) => ({ url: '/users/contacts/accept', method: 'POST', body: { userId } }),
+      invalidatesTags: ['User'],
+    }),
+
+    // ── POST /users/contacts/reject { userId } ─────────────────────────────
+    rejectContactRequest: build.mutation({
+      query: (userId) => ({ url: '/users/contacts/reject', method: 'POST', body: { userId } }),
+      invalidatesTags: ['User'],
+    }),
+
+    // ── DELETE /users/contacts/:userId ─────────────────────────────────────
+    removeContact: build.mutation({
+      query: (userId) => ({ url: `/users/contacts/${userId}`, method: 'DELETE' }),
+      invalidatesTags: ['User'],
+    }),
+
+    // ── POST /users/contacts/block { userId } ─────────────────────────────
+    blockUser: build.mutation({
+      query: (userId) => ({ url: '/users/contacts/block', method: 'POST', body: { userId } }),
+      invalidatesTags: ['User'],
+    }),
+
+    // ── GET /users/contacts/relationship/:userId ───────────────────────────
+    // Relationship status: { status, direction, requestedAt, contactId }
+    getRelationship: build.query({
+      query: (userId) => `/users/contacts/relationship/${userId}`,
+      providesTags: ['User'],
+    }),
+
   }),
   overrideExisting: false,
 });
@@ -162,4 +227,14 @@ export const {
   useUpdateAvatarMutation,
   useUpdateSettingsMutation,
   useLazyCheckUsernameQuery,
+  useSearchUsersQuery,
+  useLazySearchUsersQuery,
+  useGetContactsQuery,
+  useGetPendingRequestsQuery,
+  useSendContactRequestMutation,
+  useAcceptContactRequestMutation,
+  useRejectContactRequestMutation,
+  useRemoveContactMutation,
+  useBlockUserMutation,
+  useGetRelationshipQuery,
 } = userApi;
