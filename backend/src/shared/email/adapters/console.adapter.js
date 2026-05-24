@@ -7,7 +7,7 @@
  *
  * Activated when:
  *   - EMAIL_PROVIDER=console
- *   - NODE_ENV=development and BREVO_SMTP_LOGIN is not set
+ *   - NODE_ENV=development and BREVO_API_KEY is not set
  *
  * Interface contract (every adapter must satisfy):
  *   sendMail({ to, subject, html, text }) → Promise<{ messageId: string }>

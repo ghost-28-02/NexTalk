@@ -5,9 +5,9 @@
  *   getAdapter() selects the active transport based on EMAIL_PROVIDER env var.
  *
  * Provider switch:
- *   EMAIL_PROVIDER=brevo    → Brevo SMTP via Nodemailer
+ *   EMAIL_PROVIDER=brevo    → Brevo transactional API
  *   EMAIL_PROVIDER=console  → Dev console adapter (no actual sends)
- *   (auto)                  → console if BREVO_SMTP_LOGIN absent, brevo if present
+ *   (auto)                  → console if BREVO_API_KEY absent, brevo if present
  *
  * To add a new provider (SendGrid, SES, Resend):
  *   1. Create src/shared/email/adapters/<provider>.adapter.js (same interface)
@@ -36,7 +36,7 @@ function getAdapter() {
 
   // Auto-detect: use Brevo if credentials present, console otherwise (dev default).
   // This means the dev environment works out of the box without any email setup.
-  return process.env.BREVO_SMTP_LOGIN ? brevoAdapter : consoleAdapter;
+  return process.env.BREVO_API_KEY ? brevoAdapter : consoleAdapter;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ function getProviderName() {
   const provider = (process.env.EMAIL_PROVIDER || 'auto').toLowerCase();
   if (provider === 'brevo')   return 'brevo';
   if (provider === 'console') return 'console';
-  return process.env.BREVO_SMTP_LOGIN ? 'brevo' : 'console';
+  return process.env.BREVO_API_KEY ? 'brevo' : 'console';
 }
 
 module.exports = { sendMail, getProviderName };

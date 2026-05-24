@@ -1,72 +1,60 @@
 /**
- * Brevo SMTP Adapter — production email transport.
+ * Brevo API Adapter — production email transport.
  *
- * Uses Nodemailer with Brevo's transactional SMTP relay.
- * SMTP credentials are obtained from the Brevo dashboard:
- *   Settings → SMTP & API → SMTP tab → Generate new SMTP key
+ * Uses Brevo's transactional email REST API instead of SMTP.
+ * Endpoint: POST https://api.brevo.com/v3/smtp/email
  *
- * Provider-agnostic by design — every field maps to standard SMTP:
- *   - Switch to SendGrid: SMTP_HOST=smtp.sendgrid.net, SMTP_PORT=587
- *   - Switch to SES:      SMTP_HOST=email-smtp.<region>.amazonaws.com
- *   - Switch to Resend:   SMTP_HOST=smtp.resend.com
- *   No code changes required — env vars only.
- *
- * FUTURE [Queue/BullMQ]:
- *   Replace the direct `transporter.sendMail()` call with a queue enqueue:
- *     emailQueue.add('send', { to, subject, html, text }, { attempts: 3, backoff: { type: 'exponential', delay: 5000 } })
- *   The queue worker then calls transporter.sendMail() with retry logic.
- *   This provides delivery guarantees, failure visibility, and rate control.
- *
- * Interface contract (every adapter must satisfy):
+ * Interface contract:
  *   sendMail({ to, subject, html, text }) → Promise<{ messageId: string }>
  */
 
-const nodemailer = require('nodemailer');
 const { emailConfig } = require('../../../config/email.config');
 const { logger } = require('../../../shared/utils/logger');
 
-// Lazily initialized — transport is created on first use so the adapter
-// can be imported without env vars present (e.g., during unit tests).
-let _transporter = null;
+async function sendBrevoEmail({ to, subject, html, text }) {
+  if (!emailConfig.apiKey) {
+    throw new Error('BREVO_API_KEY is missing');
+  }
 
-function getTransporter() {
-  if (_transporter) return _transporter;
-
-  _transporter = nodemailer.createTransport({
-    host:   emailConfig.smtp.host,
-    port:   emailConfig.smtp.port,
-    secure: emailConfig.smtp.secure,
-    auth: {
-      user: emailConfig.smtp.login,
-      pass: emailConfig.smtp.password,
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': emailConfig.apiKey,
+      accept: 'application/json',
     },
-    // Connection pool — reuse SMTP connections for burst sending
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
+    body: JSON.stringify({
+      sender: {
+        name: emailConfig.from.name,
+        email: emailConfig.from.address,
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+      headers: {
+        'X-Mailin-Tag': 'transactional',
+      },
+    }),
   });
 
-  return _transporter;
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : {};
+
+  if (!response.ok) {
+    const errorMessage = payload?.message || payload?.code || responseText || 'Brevo API request failed';
+    throw new Error(errorMessage);
+  }
+
+  const messageId = payload?.messageId || payload?.messageIds?.[0] || `brevo-${Date.now()}`;
+
+  logger.info('[Email] Sent via Brevo API', { to, subject, messageId });
+
+  return { messageId };
 }
 
 const brevoAdapter = {
-  async sendMail({ to, subject, html, text }) {
-    const transporter = getTransporter();
-
-    const info = await transporter.sendMail({
-      from: `"${emailConfig.from.name}" <${emailConfig.from.address}>`,
-      to,
-      subject,
-      html,
-      text,
-      // Brevo-specific header for transactional email classification
-      headers: { 'X-Mailin-Tag': 'transactional' },
-    });
-
-    logger.info('[Email] Sent via Brevo SMTP', { to, subject, messageId: info.messageId });
-
-    return { messageId: info.messageId };
-  },
+  sendMail: sendBrevoEmail,
 };
 
 module.exports = brevoAdapter;
