@@ -37,9 +37,7 @@ const emailConfig = {
   smtp: {
     host:   process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com',
     port:   _smtpPort,
-    secure: process.env.BREVO_SMTP_SECURE !== undefined
-      ? process.env.BREVO_SMTP_SECURE === 'true'
-      : _smtpPort === 465, // auto: port 465 → implicit TLS, everything else → STARTTLS
+    secure: false,
     login:    process.env.BREVO_SMTP_LOGIN    || '',
     password: process.env.BREVO_SMTP_PASSWORD || '',
   },

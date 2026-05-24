@@ -87,7 +87,10 @@ export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
         isMobile ? 'w-full' : 'w-80 shrink-0',
       )}
     >
-      <div className="p-4 space-y-4">
+      {/* Fixed header — shrink-0 prevents it from collapsing when the chat
+          list grows. Without this the flex algorithm can steal height from
+          the header to accommodate the ScrollArea's content. */}
+      <div className="shrink-0 p-4 space-y-4">
         <div className="flex items-center justify-between">
           <Logo size="sm" />
           <div className="flex items-center gap-1">
@@ -172,7 +175,12 @@ export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-2">
+      {/* Scrollable chat list — flex-1 makes it grow, min-h-0 is the
+          critical override. By default flex items have min-height:auto,
+          which prevents shrinking below content height and pushes the
+          footer button off screen. min-h-0 lets the flex algorithm assign
+          a real bounded height so the Radix viewport's overflow:auto fires. */}
+      <ScrollArea className="flex-1 min-h-0 px-2">
         {pinnedChats.length > 0 && (
           <div className="mb-2">
             <div className="flex items-center gap-2 px-3 py-2">
@@ -223,7 +231,10 @@ export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
         )}
       </ScrollArea>
 
-      <div className="p-4 border-t border-sidebar-border">
+      {/* Fixed footer — shrink-0 keeps this pinned to the bottom.
+          The "New Conversation" button is always visible regardless of
+          how many chats are in the scrollable area above. */}
+      <div className="shrink-0 p-4 border-t border-sidebar-border">
         <Button
           className="w-full gradient-primary text-white border-0 gap-2"
           onClick={() => setNewChatOpen(true)}

@@ -21,12 +21,26 @@ class ChatRepository extends BaseRepository {
       .lean();
   }
 
+  /**
+   * Find an existing direct chat between two users.
+   *
+   * Population is intentional: toChatDTO() needs m.user.displayName,
+   * m.user.username, and m.user.avatar to build the chat name/avatar
+   * for the sidebar. Without population, m.user is a raw ObjectId —
+   * all property access returns undefined, producing "Unknown".
+   */
   async findDirectChat(userId1, userId2) {
     return Chat.findOne({
       type: 'direct',
       'members.user': { $all: [userId1, userId2] },
       $expr: { $eq: [{ $size: '$members' }, 2] },
-    }).lean();
+    })
+      .populate('members.user', 'username displayName avatar status lastSeenAt')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: 'username displayName avatar' },
+      })
+      .lean();
   }
 
   /**

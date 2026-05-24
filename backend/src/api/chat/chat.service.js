@@ -28,7 +28,7 @@ async function getOrCreateDirectChat(currentUserId, targetUserId) {
   const existing = await chatRepository.findDirectChat(currentUserId, targetUserId);
   if (existing) return { chat: existing, isNew: false };
 
-  const chat = await chatRepository.create({
+  const raw = await chatRepository.create({
     type: CHAT_TYPES.DIRECT,
     members: [
       { user: currentUserId, role: 'admin' },
@@ -37,20 +37,31 @@ async function getOrCreateDirectChat(currentUserId, targetUserId) {
     createdBy: currentUserId,
   });
 
-  // Notify the target user in realtime so their sidebar updates without
-  // a refresh. We re-fetch the chat fully populated (same fields as
-  // findUserChats) and shape the DTO from the target's perspective.
+  // Populate once, reuse for both the HTTP response DTO and the socket
+  // notification. The raw document has members.user as bare ObjectIds —
+  // toChatDTO needs the full user subdoc (displayName, username, avatar)
+  // or the sidebar renders "Unknown" for the other participant.
+  let populated = null;
   try {
-    const populated = await chatRepository.findByIdPopulated(chat._id);
-    if (populated) {
-      const targetDTO = toChatDTO(populated, targetUserId);
-      tryEmit(`user:${targetUserId.toString()}`, CHAT_EVENTS.NEW_CHAT, { chat: targetDTO });
-    }
+    populated = await chatRepository.findByIdPopulated(raw._id);
   } catch {
-    // Socket emission is best-effort — never block the HTTP response
+    // Populate failed (e.g. transient DB issue) — fall back to raw so
+    // the HTTP response still succeeds, just without participant names.
   }
 
-  return { chat, isNew: true };
+  // Notify the target user's sidebar in realtime (best-effort).
+  if (populated) {
+    try {
+      const targetDTO = toChatDTO(populated, targetUserId);
+      tryEmit(`user:${targetUserId.toString()}`, CHAT_EVENTS.NEW_CHAT, { chat: targetDTO });
+    } catch {
+      // Socket emission never blocks the HTTP response
+    }
+  }
+
+  // Return the populated version so the controller's toChatDTO call has
+  // real user data. Falls back to raw if population failed.
+  return { chat: populated ?? raw, isNew: true };
 }
 
 async function createGroupChat(currentUserId, { name, memberIds, description }) {
