@@ -20,7 +20,7 @@ const GUEST_PREFIXES = ['/login', '/signup', '/forgot-password', '/reset-passwor
 
 export function proxy(request) {
   const { pathname } = request.nextUrl;
-  const session = request.cookies.get('nx_session');
+  const session = request.cookies.get('nx_token');
   const isLoggedIn = !!session?.value;
 
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));

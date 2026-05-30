@@ -2,7 +2,6 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   user: null,
-  accessToken: null,
   isAuthenticated: false,
   isInitialized: false, // true after first session-restore attempt completes
   pendingEmail: null,   // set during signup → verify-email flow, cleared after verification
@@ -14,18 +13,12 @@ const authSlice = createSlice({
   reducers: {
     setCredentials(state, { payload }) {
       state.user = payload.user;
-      state.accessToken = payload.accessToken;
       state.isAuthenticated = true;
       state.isInitialized = true;
     },
 
-    tokenRefreshed(state, { payload }) {
-      state.accessToken = payload;
-    },
-
     clearAuth(state) {
       state.user = null;
-      state.accessToken = null;
       state.isAuthenticated = false;
       state.isInitialized = true;
     },
@@ -52,7 +45,6 @@ const authSlice = createSlice({
 
 export const {
   setCredentials,
-  tokenRefreshed,
   clearAuth,
   authInitialized,
   setPendingEmail,

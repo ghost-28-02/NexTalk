@@ -5,7 +5,6 @@ export { AuthGuard } from './guards/AuthGuard';
 export { GuestGuard } from './guards/GuestGuard';
 export {
   setCredentials,
-  tokenRefreshed,
   clearAuth,
   authInitialized,
   setPendingEmail,
@@ -16,12 +15,11 @@ export * from './store/authSelectors';
 export {
   useSignupMutation,
   useLoginMutation,
-  useRefreshMutation,
   useLogoutMutation,
-  useLogoutAllMutation,
   useVerifyEmailMutation,
   useResendVerificationMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useGetMeQuery,
+  useLazyGetMeQuery,
 } from './services/authApi';

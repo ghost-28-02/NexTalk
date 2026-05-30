@@ -12,38 +12,17 @@ export const authApi = baseApi.injectEndpoints({
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          dispatch(setCredentials({ user: data.data.user, accessToken: data.data.accessToken }));
+          // JWT is set as httpOnly cookie by the backend.
+          // We only store user in Redux for UI use.
+          dispatch(setCredentials({ user: data.data.user }));
         } catch {
           // Error handled by the component
         }
       },
     }),
 
-    refresh: builder.mutation({
-      query: () => ({ url: '/auth/refresh', method: 'POST' }),
-      async onQueryStarted(_, { dispatch, queryFulfilled }) {
-        try {
-          const { data } = await queryFulfilled;
-          dispatch(setCredentials({ user: data.data.user, accessToken: data.data.accessToken }));
-        } catch {
-          dispatch(clearAuth());
-        }
-      },
-    }),
-
     logout: builder.mutation({
       query: () => ({ url: '/auth/logout', method: 'POST' }),
-      async onQueryStarted(_, { dispatch, queryFulfilled }) {
-        try {
-          await queryFulfilled;
-        } finally {
-          dispatch(clearAuth());
-        }
-      },
-    }),
-
-    logoutAll: builder.mutation({
-      query: () => ({ url: '/auth/logout-all', method: 'POST' }),
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -72,6 +51,14 @@ export const authApi = baseApi.injectEndpoints({
     getMe: builder.query({
       query: () => '/auth/me',
       providesTags: ['Auth'],
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(setCredentials({ user: data.data }));
+        } catch {
+          dispatch(clearAuth());
+        }
+      },
     }),
   }),
   overrideExisting: false,
@@ -80,12 +67,11 @@ export const authApi = baseApi.injectEndpoints({
 export const {
   useSignupMutation,
   useLoginMutation,
-  useRefreshMutation,
   useLogoutMutation,
-  useLogoutAllMutation,
   useVerifyEmailMutation,
   useResendVerificationMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useGetMeQuery,
+  useLazyGetMeQuery,
 } = authApi;

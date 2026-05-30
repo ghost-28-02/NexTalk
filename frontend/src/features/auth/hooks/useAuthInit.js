@@ -1,41 +1,29 @@
 import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useRefreshMutation } from '../services/authApi';
+import { useLazyGetMeQuery } from '../services/authApi';
 import { selectIsInitialized } from '../store/authSelectors';
 import { authInitialized } from '../store/authSlice';
 
 /**
  * Fires once on app mount to restore the user's session.
  *
- * Strategy: POST /auth/refresh
- *   - The httpOnly refresh token cookie is auto-sent by the browser.
- *   - If it's still valid → server responds with { accessToken, user }.
- *     The `refresh` mutation's onQueryStarted dispatches setCredentials.
- *   - If the cookie is expired or missing → server returns 401.
- *     The `refresh` mutation's onQueryStarted dispatches clearAuth.
+ * Strategy: GET /auth/me
+ *   - The httpOnly JWT cookie is auto-sent by the browser.
+ *   - If valid → server returns user data → setCredentials is dispatched.
+ *   - If cookie missing or expired → server returns 401 → clearAuth is dispatched.
  *   - Either way → isInitialized is set to true → app renders.
- *
- * Called from AuthInitializer inside AppProviders — runs exactly once per page load.
  */
 export function useAuthInit() {
   const dispatch = useDispatch();
   const isInitialized = useSelector(selectIsInitialized);
-  const [refresh] = useRefreshMutation();
+  const [getMe] = useLazyGetMeQuery();
   const dispatchRef = useRef(dispatch);
   const initializedRef = useRef(isInitialized);
-  const refreshRef = useRef(refresh);
+  const getMeRef = useRef(getMe);
 
-  useEffect(() => {
-    dispatchRef.current = dispatch;
-  }, [dispatch]);
-
-  useEffect(() => {
-    initializedRef.current = isInitialized;
-  }, [isInitialized]);
-
-  useEffect(() => {
-    refreshRef.current = refresh;
-  }, [refresh]);
+  useEffect(() => { dispatchRef.current = dispatch; }, [dispatch]);
+  useEffect(() => { initializedRef.current = isInitialized; }, [isInitialized]);
+  useEffect(() => { getMeRef.current = getMe; }, [getMe]);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -44,7 +32,7 @@ export function useAuthInit() {
 
     const restoreSession = async () => {
       try {
-        await refreshRef.current();
+        await getMeRef.current();
       } finally {
         if (!cancelled) {
           dispatchRef.current(authInitialized());
@@ -54,8 +42,6 @@ export function useAuthInit() {
 
     void restoreSession();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 }
