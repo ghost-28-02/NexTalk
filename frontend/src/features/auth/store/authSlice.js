@@ -2,9 +2,10 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   user: null,
+  socketToken: null,    // in-memory token for Socket.IO handshake (sockets can't use Next.js proxy)
   isAuthenticated: false,
-  isInitialized: false, // true after first session-restore attempt completes
-  pendingEmail: null,   // set during signup → verify-email flow, cleared after verification
+  isInitialized: false,
+  pendingEmail: null,
 };
 
 const authSlice = createSlice({
@@ -13,12 +14,14 @@ const authSlice = createSlice({
   reducers: {
     setCredentials(state, { payload }) {
       state.user = payload.user;
+      if (payload.socketToken) state.socketToken = payload.socketToken;
       state.isAuthenticated = true;
       state.isInitialized = true;
     },
 
     clearAuth(state) {
       state.user = null;
+      state.socketToken = null;
       state.isAuthenticated = false;
       state.isInitialized = true;
     },

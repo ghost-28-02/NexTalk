@@ -1,7 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { clearAuth } from '@/features/auth/store/authSlice';
 
-const BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
+// Use relative URL so requests go through Next.js rewrites (same domain as frontend).
+// This ensures cookies set by the backend are on the Vercel domain and readable
+// by proxy.js middleware. In development, NEXT_PUBLIC_API_URL is used directly.
+const BASE_URL = process.env.NODE_ENV === 'production'
+  ? '/api/v1'
+  : `${process.env.NEXT_PUBLIC_API_URL}/api/v1`;
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: BASE_URL,

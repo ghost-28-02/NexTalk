@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -23,7 +24,6 @@ import {
   ArrowLeft,
   Search,
   MessageSquare,
-  Phone,
   MoreVertical,
   Users,
   UserCheck,
@@ -49,11 +49,6 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getInitial(name) {
-  return (name || '?')[0].toUpperCase();
-}
-
-/** Group a sorted array of users by first letter of their display name. */
 function groupByLetter(users) {
   return users.reduce((acc, user) => {
     const letter = (user.name || user.displayName || user.username || '#')[0].toUpperCase();
@@ -89,7 +84,7 @@ function LoadingSkeleton({ rows = 5 }) {
 
 // ─── Empty states ─────────────────────────────────────────────────────────────
 
-function EmptyState({ icon: Icon, title, subtitle }) {
+function EmptyState({ icon: Icon, title, subtitle, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
       <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -99,23 +94,23 @@ function EmptyState({ icon: Icon, title, subtitle }) {
       {subtitle && (
         <p className="text-sm text-muted-foreground mt-1 max-w-xs">{subtitle}</p>
       )}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
 // ─── Contacts Tab ─────────────────────────────────────────────────────────────
 
-function ContactsTab({ searchFilter }) {
-  const router          = useRouter();
-  const dispatch        = useDispatch();
-  const presences       = useSelector(selectAllPresence);
-  const currentUser     = useSelector((s) => s.auth.user);
+function ContactsTab({ searchFilter, onSwitchTab }) {
+  const router      = useRouter();
+  const dispatch    = useDispatch();
+  const presences   = useSelector(selectAllPresence);
 
   const { data, isLoading, error } = useGetContactsQuery({ page: 1, limit: 100 });
   const [getOrCreateDirect]        = useGetOrCreateDirectMutation();
   const [removeContact]            = useRemoveContactMutation();
   const [blockUser]                = useBlockUserMutation();
-  const [actionId, setActionId]    = useState(null); // userId currently being acted on
+  const [actionId, setActionId]    = useState(null);
 
   const contactsData = data?.data?.contacts ?? data?.contacts ?? data?.data ?? [];
   const contacts = Array.isArray(contactsData)
@@ -134,9 +129,7 @@ function ContactsTab({ searchFilter }) {
       )
     : contacts;
 
-  const sorted  = [...filtered].sort((a, b) =>
-    (a.name || '').localeCompare(b.name || ''),
-  );
+  const sorted  = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const grouped = groupByLetter(sorted);
   const letters = Object.keys(grouped).sort();
 
@@ -172,11 +165,24 @@ function ContactsTab({ searchFilter }) {
   };
 
   if (isLoading) return <LoadingSkeleton />;
-  if (error)     return <EmptyState icon={Users} title="Failed to load contacts" subtitle="Please try again" />;
+  if (error) return <EmptyState icon={Users} title="Failed to load contacts" subtitle="Please try again" />;
+
   if (sorted.length === 0) {
     return searchFilter
       ? <EmptyState icon={Search} title="No contacts match" subtitle={`No results for "${searchFilter}"`} />
-      : <EmptyState icon={Users} title="No contacts yet" subtitle="Search for people to add them as contacts" />;
+      : (
+        <EmptyState
+          icon={Users}
+          title="No contacts yet"
+          subtitle="Find people to connect with and start chatting."
+          action={
+            <Button variant="outline" className="gap-2" onClick={() => onSwitchTab('find')}>
+              <UserPlus className="h-4 w-4" />
+              Find People
+            </Button>
+          }
+        />
+      );
   }
 
   return (
@@ -200,9 +206,7 @@ function ContactsTab({ searchFilter }) {
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{contact.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      @{contact.username}
-                    </p>
+                    <p className="text-sm text-muted-foreground truncate">@{contact.username}</p>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button
@@ -217,11 +221,6 @@ function ContactsTab({ searchFilter }) {
                         : <MessageSquare className="h-4 w-4" />
                       }
                     </Button>
-                    <Link href="/call/audio">
-                      <Button variant="ghost" size="icon" title="Voice call">
-                        <Phone className="h-4 w-4" />
-                      </Button>
-                    </Link>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -268,10 +267,11 @@ function PendingTab() {
   const { data, isLoading, error } = useGetPendingRequestsQuery();
   const [acceptRequest] = useAcceptContactRequestMutation();
   const [rejectRequest] = useRejectContactRequestMutation();
+  const [removeContact] = useRemoveContactMutation(); // used to cancel sent requests
   const [actionId, setActionId] = useState(null);
 
-  const received = (data?.data?.received ?? []);
-  const sent     = (data?.data?.sent ?? []);
+  const received = data?.data?.received ?? [];
+  const sent     = data?.data?.sent ?? [];
 
   const handleAccept = async (userId, name) => {
     setActionId(userId);
@@ -292,6 +292,18 @@ function PendingTab() {
       toast.success(`Request from ${name} declined`);
     } catch {
       toast.error('Failed to decline request');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleCancelSent = async (userId, name) => {
+    setActionId(userId + '_cancel');
+    try {
+      await removeContact(userId).unwrap();
+      toast.success(`Request to ${name} cancelled`);
+    } catch {
+      toast.error('Failed to cancel request');
     } finally {
       setActionId(null);
     }
@@ -322,16 +334,10 @@ function PendingTab() {
                     key={req.requestId}
                     className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card/50"
                   >
-                    <UserAvatar
-                      user={{ name, avatar: user?.avatar, status }}
-                      size="lg"
-                      showStatus
-                    />
+                    <UserAvatar user={{ name, avatar: user?.avatar, status }} size="lg" showStatus />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{name}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        @{user?.username}
-                      </p>
+                      <p className="text-sm text-muted-foreground truncate">@{user?.username}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <Button
@@ -380,23 +386,24 @@ function PendingTab() {
                     key={req.requestId}
                     className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card/50"
                   >
-                    <UserAvatar
-                      user={{ name, avatar: user?.avatar, status }}
-                      size="lg"
-                      showStatus
-                    />
+                    <UserAvatar user={{ name, avatar: user?.avatar, status }} size="lg" showStatus />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{name}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        @{user?.username}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Request pending
-                      </p>
+                      <p className="text-sm text-muted-foreground truncate">@{user?.username}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Waiting for response</p>
                     </div>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full shrink-0">
-                      Pending
-                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => handleCancelSent(user?.id?.toString(), name)}
+                      disabled={actionId === user?.id?.toString() + '_cancel'}
+                    >
+                      {actionId === user?.id?.toString() + '_cancel'
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <><X className="h-4 w-4 mr-1" />Cancel</>
+                      }
+                    </Button>
                   </div>
                 );
               })}
@@ -411,18 +418,34 @@ function PendingTab() {
 // ─── Find People Tab ──────────────────────────────────────────────────────────
 
 function FindPeopleTab() {
-  const router          = useRouter();
-  const dispatch        = useDispatch();
-  const presences       = useSelector(selectAllPresence);
-  const currentUser     = useSelector((s) => s.auth.user);
-  const searchRef       = useRef(null);
+  const router      = useRouter();
+  const dispatch    = useDispatch();
+  const presences   = useSelector(selectAllPresence);
+  const currentUser = useSelector((s) => s.auth.user);
+  const searchRef   = useRef(null);
 
-  const [query,         setQuery]         = useState('');
-  const [debouncedQ,    setDebouncedQ]    = useState('');
-  const [actionId,      setActionId]      = useState(null);
+  const [query,      setQuery]      = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+  const [actionId,   setActionId]   = useState(null);
 
-  const [getOrCreateDirect]   = useGetOrCreateDirectMutation();
-  const [sendRequest]          = useSendContactRequestMutation();
+  const [getOrCreateDirect] = useGetOrCreateDirectMutation();
+  const [sendRequest]       = useSendContactRequestMutation();
+
+  // Load contacts + pending to derive relationship status
+  const { data: contactsRes } = useGetContactsQuery({ page: 1, limit: 100 });
+  const { data: pendingRes  } = useGetPendingRequestsQuery();
+
+  const contactsData = contactsRes?.data?.contacts ?? contactsRes?.contacts ?? contactsRes?.data ?? [];
+  const contactIds = new Set(
+    Array.isArray(contactsData) ? contactsData.map((c) => c.id?.toString()) : [],
+  );
+  const sentIds = new Set(
+    (pendingRes?.data?.sent ?? []).map((r) => r.recipient?.id?.toString()),
+  );
+  const receivedIds = new Set(
+    (pendingRes?.data?.received ?? []).map((r) => r.requester?.id?.toString()),
+  );
+  const [acceptRequest] = useAcceptContactRequestMutation();
 
   // Debounce
   useEffect(() => {
@@ -430,9 +453,7 @@ function FindPeopleTab() {
     return () => clearTimeout(t);
   }, [query]);
 
-  useEffect(() => {
-    searchRef.current?.focus();
-  }, []);
+  useEffect(() => { searchRef.current?.focus(); }, []);
 
   const isSearching = debouncedQ.length >= 2;
   const { data, isFetching, error } = useSearchUsersQuery(
@@ -463,13 +484,21 @@ function FindPeopleTab() {
       toast.success(`Contact request sent to ${name}`);
     } catch (err) {
       const code = err?.data?.code;
-      if (code === 'ALREADY_CONTACTS') {
-        toast.info(`You're already connected with ${name}`);
-      } else if (code === 'REQUEST_ALREADY_SENT') {
-        toast.info('Request already sent — waiting for them to accept');
-      } else {
-        toast.error(err?.data?.message ?? 'Could not send request');
-      }
+      if (code === 'ALREADY_CONTACTS') toast.info(`Already connected with ${name}`);
+      else if (code === 'REQUEST_ALREADY_SENT') toast.info('Request already sent');
+      else toast.error(err?.data?.message ?? 'Could not send request');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleAccept = async (userId, name) => {
+    setActionId(userId + '_accept');
+    try {
+      await acceptRequest(userId).unwrap();
+      toast.success(`${name} added to contacts`);
+    } catch {
+      toast.error('Failed to accept request');
     } finally {
       setActionId(null);
     }
@@ -477,7 +506,6 @@ function FindPeopleTab() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search bar */}
       <div className="p-4 pb-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -500,7 +528,6 @@ function FindPeopleTab() {
         </div>
       </div>
 
-      {/* Results */}
       <ScrollArea className="flex-1">
         <div className="p-4 pt-2 space-y-1">
           {!isSearching ? (
@@ -521,49 +548,74 @@ function FindPeopleTab() {
             />
           ) : (
             results.map((user) => {
-              const status = presences[user.id?.toString()] ?? 'offline';
-              const name   = user.name || user.displayName || user.username;
+              const status      = presences[user.id?.toString()] ?? 'offline';
+              const name        = user.name || user.displayName || user.username;
+              const uid         = user.id?.toString();
+              const isContact   = contactIds.has(uid);
+              const isSent      = sentIds.has(uid);
+              const isReceived  = receivedIds.has(uid);
+
               return (
                 <div
                   key={user.id}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors"
                 >
-                  <UserAvatar
-                    user={{ name, avatar: user.avatar, status }}
-                    size="lg"
-                    showStatus
-                  />
+                  <UserAvatar user={{ name, avatar: user.avatar, status }} size="lg" showStatus />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{name}</p>
                     <p className="text-sm text-muted-foreground truncate">
-                      @{user.username}
-                      {user.bio ? ` · ${user.bio}` : ''}
+                      @{user.username}{user.bio ? ` · ${user.bio}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* Message button — always shown */}
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleMessage(user.id?.toString())}
-                      disabled={actionId === user.id + '_msg'}
+                      onClick={() => handleMessage(uid)}
+                      disabled={actionId === uid + '_msg'}
                       title="Message"
                     >
-                      {actionId === user.id + '_msg'
+                      {actionId === uid + '_msg'
                         ? <Loader2 className="h-4 w-4 animate-spin" />
                         : <MessageSquare className="h-4 w-4" />
                       }
                     </Button>
-                    <Button
-                      size="sm"
-                      className="gradient-primary text-white border-0"
-                      onClick={() => handleAddContact(user.id?.toString(), name)}
-                      disabled={actionId === user.id + '_add'}
-                    >
-                      {actionId === user.id + '_add'
-                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                        : <><UserPlus className="h-4 w-4 mr-1" />Add</>
-                      }
-                    </Button>
+
+                    {/* Relationship-aware action button */}
+                    {isContact ? (
+                      <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                        Contact
+                      </span>
+                    ) : isReceived ? (
+                      <Button
+                        size="sm"
+                        className="gradient-primary text-white border-0"
+                        onClick={() => handleAccept(uid, name)}
+                        disabled={actionId === uid + '_accept'}
+                      >
+                        {actionId === uid + '_accept'
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <><UserCheck className="h-4 w-4 mr-1" />Accept</>
+                        }
+                      </Button>
+                    ) : isSent ? (
+                      <span className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                        Pending
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="gradient-primary text-white border-0"
+                        onClick={() => handleAddContact(uid, name)}
+                        disabled={actionId === uid + '_add'}
+                      >
+                        {actionId === uid + '_add'
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <><UserPlus className="h-4 w-4 mr-1" />Add</>
+                        }
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
@@ -578,13 +630,19 @@ function FindPeopleTab() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ContactsPage() {
-  const [activeTab,     setActiveTab]     = useState('contacts');
-  const [searchQuery,   setSearchQuery]   = useState('');
+  const searchParams                      = useSearchParams();
+  const initialTab                        = searchParams.get('tab') ?? 'contacts';
+  const [activeTab,   setActiveTab]       = useState(initialTab);
+  const [searchQuery, setSearchQuery]     = useState('');
   const { data: pendingData }             = useGetPendingRequestsQuery();
   const pendingCount = (pendingData?.data?.received ?? []).length;
 
-  // Search only applies to the Contacts tab
   const showSearch = activeTab === 'contacts';
+
+  const handleTabChange = (v) => {
+    setActiveTab(v);
+    setSearchQuery('');
+  };
 
   return (
     <div className="h-screen bg-background flex flex-col">
@@ -617,7 +675,7 @@ export default function ContactsPage() {
       {/* Tabs */}
       <Tabs
         value={activeTab}
-        onValueChange={(v) => { setActiveTab(v); setSearchQuery(''); }}
+        onValueChange={handleTabChange}
         className="flex-1 flex flex-col overflow-hidden"
       >
         <TabsList className="mx-4 mt-4 w-fit shrink-0">
@@ -641,7 +699,7 @@ export default function ContactsPage() {
         </TabsList>
 
         <TabsContent value="contacts" className="flex-1 overflow-hidden m-0 mt-2">
-          <ContactsTab searchFilter={searchQuery} />
+          <ContactsTab searchFilter={searchQuery} onSwitchTab={setActiveTab} />
         </TabsContent>
 
         <TabsContent value="pending" className="flex-1 overflow-hidden m-0 mt-2">
@@ -653,7 +711,6 @@ export default function ContactsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Mobile nav */}
       <div className="md:hidden">
         <MobileNav activePage="contacts" />
       </div>

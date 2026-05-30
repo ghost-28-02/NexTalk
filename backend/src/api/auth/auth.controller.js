@@ -22,7 +22,10 @@ const login = asyncHandler(async (req, res) => {
   const { identifier, password } = req.body;
   const { user, token } = await authService.login({ identifier, password });
   setAuthCookie(res, token);
-  return ApiResponse.success(res, { user: toAuthUserDTO(user) }, 'Login successful');
+  // Also return token in body so the client can pass it to Socket.IO handshake.
+  // Sockets connect directly to the backend and can't use the Next.js proxy,
+  // so they can't rely on the cookie being present on the backend domain.
+  return ApiResponse.success(res, { user: toAuthUserDTO(user), socketToken: token }, 'Login successful');
 });
 
 const logout = asyncHandler(async (req, res) => {

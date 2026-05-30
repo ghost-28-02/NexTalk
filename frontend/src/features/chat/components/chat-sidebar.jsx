@@ -234,7 +234,7 @@ export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
       {/* Fixed footer — shrink-0 keeps this pinned to the bottom.
           The "New Conversation" button is always visible regardless of
           how many chats are in the scrollable area above. */}
-      <div className="shrink-0 p-4 border-t border-sidebar-border">
+      <div className="shrink-0 p-4 border-t border-sidebar-border space-y-2">
         <Button
           className="w-full gradient-primary text-white border-0 gap-2"
           onClick={() => setNewChatOpen(true)}
@@ -242,6 +242,12 @@ export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
           <Plus className="h-4 w-4" />
           New Conversation
         </Button>
+        <Link href="/contacts" className="block">
+          <Button variant="outline" className="w-full gap-2">
+            <Users className="h-4 w-4" />
+            Contacts
+          </Button>
+        </Link>
       </div>
 
       <NewConversationModal open={newChatOpen} onOpenChange={setNewChatOpen} />

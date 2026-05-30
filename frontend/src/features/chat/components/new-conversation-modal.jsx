@@ -1,28 +1,10 @@
 'use client';
 
-/**
- * NewConversationModal — floating dialog for starting a direct conversation.
- *
- * Three content modes:
- *   Default  → "Recent" (last DMs from Redux) + "Contacts" (GET /users/contacts)
- *   Search   → debounced GET /users/search results (activates at ≥ 2 chars)
- *   Loading  → pulse skeletons while contacts API resolves
- *
- * Clicking a user:
- *   1. POST /chats/direct { userId }  (getOrCreateDirect — idempotent)
- *   2. dispatch activeChatSet(chat.id)
- *   3. Close modal
- *   4. router.push('/chat')
- *
- * The other user's sidebar updates automatically via chat:new_chat socket
- * (emitted by the backend on new chat creation).
- */
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
-import { Search, Loader2, Users2 } from 'lucide-react';
+import { Search, Loader2, Users2, UserPlus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { UserAvatar } from '@/components/common';
@@ -39,6 +22,7 @@ import { selectAllPresence } from '@/features/presence/store/presenceSlice';
 import {
   useSearchUsersQuery,
   useGetContactsQuery,
+  useSendContactRequestMutation,
 } from '@/features/profile';
 
 // ─── Section header ───────────────────────────────────────────────────────────
@@ -87,29 +71,28 @@ function EmptySearch({ query }) {
   );
 }
 
-function EmptyContacts() {
+function EmptyContacts({ onGoToContacts }) {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center px-4">
       <Users2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
       <p className="text-sm font-medium">No contacts yet</p>
-      <p className="text-xs text-muted-foreground mt-1">
-        Search above to find people to message
+      <p className="text-xs text-muted-foreground mt-1 mb-4">
+        Search above to message anyone, or add contacts to find them quickly.
       </p>
+      <Button variant="outline" size="sm" className="gap-2" onClick={onGoToContacts}>
+        <UserPlus className="h-4 w-4" />
+        Find People
+      </Button>
     </div>
   );
 }
 
-// ─── User row ─────────────────────────────────────────────────────────────────
+// ─── User row (contacts / recent) ─────────────────────────────────────────────
 
-/**
- * Defined outside the modal to avoid re-mount on every modal render.
- * presenceStatuses is passed as a prop (from selectAllPresence) so this
- * component does not need its own useSelector call.
- */
 function UserRow({ user, presenceStatuses, onClick, isStarting }) {
-  const status     = presenceStatuses[user.id?.toString()] ?? 'offline';
+  const status      = presenceStatuses[user.id?.toString()] ?? 'offline';
   const displayName = user.name || user.displayName || user.username || 'Unknown';
-  const avatarUser = { name: displayName, avatar: user.avatar, status };
+  const avatarUser  = { name: displayName, avatar: user.avatar, status };
 
   return (
     <button
@@ -132,6 +115,52 @@ function UserRow({ user, presenceStatuses, onClick, isStarting }) {
   );
 }
 
+// ─── Search result row (with Message + Add Contact actions) ───────────────────
+
+function SearchUserRow({ user, presenceStatuses, onMessage, onAddContact, isStarting, addingId, contactIds }) {
+  const status      = presenceStatuses[user.id?.toString()] ?? 'offline';
+  const displayName = user.name || user.displayName || user.username || 'Unknown';
+  const avatarUser  = { name: displayName, avatar: user.avatar, status };
+  const isContact   = contactIds.has(user.id?.toString());
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors">
+      <UserAvatar user={avatarUser} size="md" showStatus />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{displayName}</p>
+        <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onMessage(user.id?.toString())}
+          disabled={!!isStarting}
+          className="h-7 px-2.5 text-xs"
+        >
+          {isStarting === user.id?.toString()
+            ? <Loader2 className="h-3 w-3 animate-spin" />
+            : 'Message'
+          }
+        </Button>
+        {!isContact && (
+          <Button
+            size="sm"
+            onClick={() => onAddContact(user.id?.toString(), displayName)}
+            disabled={addingId === user.id?.toString()}
+            className="h-7 px-2.5 text-xs gradient-primary text-white border-0"
+          >
+            {addingId === user.id?.toString()
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <><UserPlus className="h-3 w-3 mr-1" />Add</>
+            }
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 export function NewConversationModal({ open, onOpenChange }) {
@@ -142,32 +171,34 @@ export function NewConversationModal({ open, onOpenChange }) {
   const [searchQuery,    setSearchQuery]    = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [startingUserId, setStartingUserId] = useState(null);
+  const [addingId,       setAddingId]       = useState(null);
 
   const currentUser      = useSelector((s) => s.auth.user);
   const chats            = useSelector(selectChats);
   const presenceStatuses = useSelector(selectAllPresence);
 
   const [getOrCreateDirect] = useGetOrCreateDirectMutation();
+  const [sendRequest]       = useSendContactRequestMutation();
 
-  // ── Debounce search input ─────────────────────────────────────────────────
+  // Debounce
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // ── Reset + focus when modal opens ───────────────────────────────────────
+  // Reset + focus when modal opens
   useEffect(() => {
     if (open) {
       setSearchQuery('');
       setDebouncedQuery('');
       setStartingUserId(null);
-      // Small delay to let the dialog animation finish before focusing
+      setAddingId(null);
       const t = setTimeout(() => searchRef.current?.focus(), 80);
       return () => clearTimeout(t);
     }
   }, [open]);
 
-  // ── Recent DMs — derived free from Redux, no API call ────────────────────
+  // Recent DMs from Redux
   const recentUsers = (chats ?? [])
     .filter((c) => c.type === 'direct')
     .slice(0, 6)
@@ -181,35 +212,40 @@ export function NewConversationModal({ open, onOpenChange }) {
     })
     .filter(Boolean);
 
-  // ── Contacts from API ────────────────────────────────────────────────────
+  // Contacts from API
   const { data: contactsRes, isLoading: contactsLoading } = useGetContactsQuery(
     { page: 1, limit: 50 },
     { skip: !open },
   );
   const contactsData = contactsRes?.data?.contacts ?? contactsRes?.contacts ?? contactsRes?.data ?? [];
   const contacts = Array.isArray(contactsData)
-    ? contactsData.map((c) => ({
-        ...c,
-        name: c.displayName || c.username,
-      }))
+    ? contactsData.map((c) => ({ ...c, name: c.displayName || c.username }))
     : [];
 
-  // ── Search results (activates at ≥ 2 chars) ──────────────────────────────
+  // Set of contact IDs for O(1) lookup in search results
+  const contactIds = new Set(contacts.map((c) => c.id?.toString()));
+
+  // Search results
   const isSearchMode = debouncedQuery.length >= 2;
   const { data: searchRes, isFetching: isSearching } = useSearchUsersQuery(
     { q: debouncedQuery, page: 1, limit: 20 },
     { skip: !open || !isSearchMode },
   );
-  const searchResults = searchRes?.data?.users ?? [];
+  const searchResults = (searchRes?.data?.users ?? []).filter(
+    (u) => u.id?.toString() !== currentUser?.id?.toString(),
+  );
 
-  // ── Start a conversation ──────────────────────────────────────────────────
+  const goToContacts = useCallback((tab = '') => {
+    onOpenChange(false);
+    router.push(tab ? `/contacts?tab=${tab}` : '/contacts');
+  }, [onOpenChange, router]);
+
   const startChat = useCallback(
     async (userId) => {
       if (!userId || startingUserId) return;
       setStartingUserId(userId);
       try {
         const result = await getOrCreateDirect(userId).unwrap();
-        // chatAdded is already dispatched by chatApi.onQueryStarted
         dispatch(activeChatSet(result.data?.id?.toString()));
         onOpenChange(false);
         router.push('/chat');
@@ -222,7 +258,25 @@ export function NewConversationModal({ open, onOpenChange }) {
     [getOrCreateDirect, dispatch, router, onOpenChange, startingUserId],
   );
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const addContact = useCallback(
+    async (userId, name) => {
+      if (addingId) return;
+      setAddingId(userId);
+      try {
+        await sendRequest(userId).unwrap();
+        toast.success(`Contact request sent to ${name}`);
+      } catch (err) {
+        const code = err?.data?.code;
+        if (code === 'ALREADY_CONTACTS') toast.info(`You're already connected with ${name}`);
+        else if (code === 'REQUEST_ALREADY_SENT') toast.info('Request already sent');
+        else toast.error(err?.data?.message ?? 'Could not send request');
+      } finally {
+        setAddingId(null);
+      }
+    },
+    [sendRequest, addingId],
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-0 gap-0 max-w-md overflow-hidden">
@@ -246,19 +300,21 @@ export function NewConversationModal({ open, onOpenChange }) {
         <ScrollArea className="max-h-[60vh]">
           <div className="p-2">
             {isSearchMode ? (
-              // ── Search mode ──────────────────────────────────────────────
               isSearching ? (
                 <LoadingSkeleton rows={5} />
               ) : searchResults.length > 0 ? (
                 <>
                   <SectionLabel>Results for &ldquo;{debouncedQuery}&rdquo;</SectionLabel>
                   {searchResults.map((user) => (
-                    <UserRow
+                    <SearchUserRow
                       key={user.id}
                       user={user}
                       presenceStatuses={presenceStatuses}
-                      onClick={startChat}
-                      isStarting={startingUserId === user.id?.toString()}
+                      onMessage={startChat}
+                      onAddContact={addContact}
+                      isStarting={startingUserId === user.id?.toString() ? user.id?.toString() : null}
+                      addingId={addingId}
+                      contactIds={contactIds}
                     />
                   ))}
                 </>
@@ -266,7 +322,6 @@ export function NewConversationModal({ open, onOpenChange }) {
                 <EmptySearch query={debouncedQuery} />
               )
             ) : (
-              // ── Default mode ─────────────────────────────────────────────
               <>
                 {/* Recent DMs */}
                 {recentUsers.length > 0 && (
@@ -305,26 +360,26 @@ export function NewConversationModal({ open, onOpenChange }) {
                     ))}
                   </>
                 ) : recentUsers.length === 0 ? (
-                  <EmptyContacts />
+                  <EmptyContacts onGoToContacts={() => goToContacts('find')} />
                 ) : null}
               </>
             )}
           </div>
         </ScrollArea>
 
-        {/* Footer hint */}
+        {/* Footer */}
         {!isSearchMode && (contacts.length > 0 || recentUsers.length > 0) && (
-          <div className="px-4 py-2 border-t border-border">
-            <p className="text-xs text-muted-foreground text-center">
-              Type to search all users &mdash; or{' '}
-              <button
-                type="button"
-                onClick={() => { onOpenChange(false); router.push('/contacts'); }}
-                className="text-primary hover:underline font-medium"
-              >
-                manage contacts
-              </button>
-            </p>
+          <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">Type to search all users</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-7 shrink-0"
+              onClick={() => goToContacts()}
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Manage Contacts
+            </Button>
           </div>
         )}
       </DialogContent>

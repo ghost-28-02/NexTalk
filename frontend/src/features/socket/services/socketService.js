@@ -1,22 +1,19 @@
 import { io } from 'socket.io-client';
 
+// Sockets connect directly to the backend (bypasses Next.js proxy).
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 /**
  * Creates a new Socket.IO client instance.
- * Auth is handled via the httpOnly JWT cookie — withCredentials sends it automatically.
- * The socket is NOT connected yet — call socket.connect() to establish.
- *
- * @returns {import('socket.io-client').Socket}
+ * @param {string} token — JWT passed in socket.auth.token for the backend socketAuth middleware.
+ *   In production the cookie lives on the Vercel domain (not the backend domain), so we pass
+ *   the token explicitly rather than relying on withCredentials.
  */
-export function createSocket() {
+export function createSocket(token) {
   return io(SOCKET_URL, {
-    // Send cookies (including nx_token) in the handshake automatically
-    withCredentials: true,
-
+    auth: { token },
     transports: ['websocket', 'polling'],
     autoConnect: false,
-
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,

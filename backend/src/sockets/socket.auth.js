@@ -2,24 +2,16 @@ const { verifyToken } = require('../shared/helpers/token.helper');
 const { userRepository } = require('../database/repositories/user.repository');
 const { ERROR_CODES } = require('../core/errors/error.codes');
 const { logger } = require('../shared/utils/logger');
-const { jwtConfig } = require('../config/jwt.config');
-
-/**
- * Parses the nx_token cookie from the socket handshake headers.
- */
-function getTokenFromCookie(socket) {
-  const cookieHeader = socket.handshake.headers?.cookie || '';
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${jwtConfig.cookie.name}=([^;]+)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
 
 /**
  * Socket.IO authentication middleware.
- * Reads the JWT from the httpOnly cookie (sent automatically with withCredentials: true).
+ * Reads the JWT from socket.handshake.auth.token — passed explicitly by the
+ * client because sockets connect directly to the backend (bypassing the Next.js
+ * proxy), so the httpOnly cookie is not available on the backend domain.
  */
 async function socketAuth(socket, next) {
   try {
-    const token = getTokenFromCookie(socket);
+    const token = socket.handshake.auth?.token;
 
     if (!token) {
       const err = new Error('Authentication required');

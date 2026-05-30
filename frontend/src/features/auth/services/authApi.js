@@ -12,9 +12,12 @@ export const authApi = baseApi.injectEndpoints({
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          // JWT is set as httpOnly cookie by the backend.
-          // We only store user in Redux for UI use.
-          dispatch(setCredentials({ user: data.data.user }));
+          dispatch(setCredentials({
+            user: data.data.user,
+            // socketToken is used by Socket.IO which connects directly to the backend
+            // and cannot rely on the cookie (which lives on the Vercel proxy domain).
+            socketToken: data.data.socketToken ?? null,
+          }));
         } catch {
           // Error handled by the component
         }
