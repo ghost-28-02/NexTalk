@@ -4,7 +4,8 @@ const { AppError }          = require('../../core/errors/AppError');
 const { ERROR_CODES }       = require('../../core/errors/error.codes');
 const { MESSAGE_TYPES }     = require('../../database/models/Message.model');
 const { CHAT_EVENTS }       = require('../../shared/constants/events');
-const { uploadMedia, validateImageFile } = require('../../shared/helpers/file.helper');
+const { uploadMedia, validateImageFile, validateVideoFile } = require('../../shared/helpers/file.helper');
+const supabaseAdapter = require('../../shared/upload/adapters/supabase.adapter');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,13 +45,37 @@ async function sendMessage(senderId, chatId, { content, type = MESSAGE_TYPES.TEX
   return message;
 }
 
+/**
+ * Detect message type from MIME type.
+ *   image/*  → IMAGE  (Cloudinary)
+ *   video/*  → VIDEO  (Cloudinary)
+ *   audio/*  → AUDIO  (Cloudinary)
+ *   anything else → FILE (Supabase Storage)
+ */
+function detectTypeAndProvider(mimetype) {
+  if (mimetype?.startsWith('image/')) return { type: MESSAGE_TYPES.IMAGE, useSupabase: false };
+  if (mimetype?.startsWith('video/')) return { type: MESSAGE_TYPES.VIDEO, useSupabase: false };
+  if (mimetype?.startsWith('audio/')) return { type: MESSAGE_TYPES.AUDIO, useSupabase: false };
+  return { type: MESSAGE_TYPES.FILE, useSupabase: true };
+}
+
 async function sendMediaMessage(senderId, chatId, file) {
   await assertChatMember(chatId, senderId);
 
-  const validationError = validateImageFile(file);
-  const messageType = validationError ? MESSAGE_TYPES.FILE : MESSAGE_TYPES.IMAGE;
+  const { type: messageType, useSupabase } = detectTypeAndProvider(file.mimetype);
 
-  const uploaded = await uploadMedia(file.tempFilePath, 'messages');
+  let uploaded;
+
+  if (useSupabase) {
+    // Documents (PDF, Word, Excel, ZIP, etc.) → Supabase Storage
+    uploaded = await supabaseAdapter.upload(file.tempFilePath, {
+      originalName: file.name,
+      mimeType:     file.mimetype,
+    });
+  } else {
+    // Images, videos, audio → Cloudinary (CDN + transforms)
+    uploaded = await uploadMedia(file.tempFilePath, 'messages');
+  }
 
   return sendMessage(senderId, chatId, {
     type: messageType,

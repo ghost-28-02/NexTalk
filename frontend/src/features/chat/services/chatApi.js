@@ -116,6 +116,16 @@ export const chatApi = baseApi.injectEndpoints({
       }),
     }),
 
+    /** Upload image, video, or file as a message. Body must be FormData with key 'file'. */
+    sendMediaMessage: builder.mutation({
+      query: ({ chatId, formData }) => ({
+        url:      `/chats/${chatId}/messages/media`,
+        method:   'POST',
+        body:     formData,
+        formData: true,
+      }),
+    }),
+
     editMessage: builder.mutation({
       query: ({ chatId, messageId, content }) => ({
         url:    `/chats/${chatId}/messages/${messageId}`,
@@ -155,6 +165,7 @@ export const {
   useCreateGroupMutation,
   useMarkReadMutation,
   useLeaveChatMutation,
+  useSendMediaMessageMutation,
   useGetMessagesQuery,
   useSendMessageMutation,
   useEditMessageMutation,
