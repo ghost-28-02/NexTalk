@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { MessageBubble, TypingIndicator } from './message-bubble';
@@ -25,10 +25,8 @@ import {
 import { useSocket } from '@/features/socket';
 import { useTyping } from '@/features/socket/hooks/useTyping';
 import { useChatActions } from '../hooks/useChatActions';
-import { selectTypingUsers } from '../store/chatSlice';
+import { selectTypingUsers, messageReceived, selectActiveChatId } from '../store/chatSlice';
 import { useSendMediaMessageMutation } from '../services/chatApi';
-import { useSelector as useReduxSelector } from 'react-redux';
-import { selectActiveChatId } from '../store/chatSlice';
 
 // ─── Emoji data ───────────────────────────────────────────────────────────────
 
@@ -219,7 +217,8 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
   const mediaInputRef = useRef(null); // for image/video
   const fileInputRef  = useRef(null); // for documents
 
-  const currentUser = useSelector((s) => s.auth.user);
+  const dispatch     = useDispatch();
+  const currentUser  = useSelector((s) => s.auth.user);
   const activeChatId = useSelector(selectActiveChatId);
   const typingUsers  = useSelector(selectTypingUsers(chat?.id?.toString()));
 
@@ -240,7 +239,7 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, typingUsers]);
 
   // ── Send text ────────────────────────────────────────────────────────────
 
@@ -315,15 +314,20 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
     try {
       const formData = new FormData();
       formData.append('file', pendingFile);
-      await sendMediaMessage({ chatId: activeChatId, formData }).unwrap();
+      const res = await sendMediaMessage({ chatId: activeChatId, formData }).unwrap();
+
+      // Dispatch the real message into Redux immediately so it appears
+      // in the chat without waiting for a socket broadcast or page refresh.
+      const msg = res?.data ?? res;
+      if (msg) dispatch(messageReceived(msg));
+
       setPendingFile(null);
-      toast.success('File sent!');
     } catch {
       toast.error('Failed to send file. Please try again.');
     } finally {
       setIsUploading(false);
     }
-  }, [pendingFile, activeChatId, sendMediaMessage]);
+  }, [pendingFile, activeChatId, sendMediaMessage, dispatch]);
 
   const canSend = newMessage.trim().length > 0 || pendingFile;
 
@@ -383,46 +387,45 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
               <Info className="h-5 w-5" />
             </Button>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem><Search className="h-4 w-4 mr-2" />Search in chat</DropdownMenuItem>
-              <DropdownMenuItem><Pin className="h-4 w-4 mr-2" />{chat.isPinned ? 'Unpin chat' : 'Pin chat'}</DropdownMenuItem>
-              <DropdownMenuItem><VolumeX className="h-4 w-4 mr-2" />{chat.isMuted ? 'Unmute' : 'Mute notifications'}</DropdownMenuItem>
-              <DropdownMenuItem><Archive className="h-4 w-4 mr-2" />Archive chat</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete chat</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </header>
 
       {/* ── Messages ─────────────────────────────────────────────────────── */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4">
-        <div className="space-y-4 max-w-3xl mx-auto">
-          <div className="flex items-center justify-center">
+        <div className="space-y-1 max-w-3xl mx-auto">
+          <div className="flex items-center justify-center mb-4">
             <span className="px-3 py-1 rounded-full bg-muted text-xs text-muted-foreground">Today</span>
           </div>
 
           {(messages ?? []).map((message, index) => {
             const prevMessage = messages[index - 1];
-            const showAvatar  = !prevMessage || prevMessage.senderId !== message.senderId;
+            const nextMessage = messages[index + 1];
+            const showAvatar = isGroupChat && (
+              !prevMessage || prevMessage.senderId !== message.senderId
+            );
+            const isNewSender = !prevMessage || prevMessage.senderId !== message.senderId;
+            const isLastFromSender = !nextMessage || nextMessage.senderId !== message.senderId;
             return (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                currentUserId={currentUser?.id}
-                showAvatar={showAvatar}
-                isGroupChat={isGroupChat}
-              />
+              <div key={message.id} className={cn(isNewSender && 'mt-3')}>
+                <MessageBubble
+                  message={message}
+                  currentUserId={currentUser?.id}
+                  showAvatar={showAvatar}
+                  isGroupChat={isGroupChat}
+                  isLastFromSender={isLastFromSender}
+                />
+              </div>
             );
           })}
 
-          {typingUsers.map(({ userId, displayName }) => (
-            <TypingIndicator key={userId} userName={displayName} />
-          ))}
+          {/* Typing indicator — appears at bottom of message list, same position as incoming messages */}
+          {typingUsers.length > 0 && (
+            <div className="mt-3">
+              {typingUsers.map(({ userId, displayName }) => (
+                <TypingIndicator key={userId} userName={displayName} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

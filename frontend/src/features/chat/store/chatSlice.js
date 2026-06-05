@@ -84,6 +84,19 @@ const chatSlice = createSlice({
       delete state.messages[chatId];
     },
 
+    chatPinToggled(state, { payload: { chatId, isPinned } }) {
+      const chat = state.chats.find((c) => c.id?.toString() === chatId?.toString());
+      if (chat) {
+        chat.isPinned = isPinned;
+        state.chats = sortChats(state.chats);
+      }
+    },
+
+    chatMuteToggled(state, { payload: { chatId, isMuted } }) {
+      const chat = state.chats.find((c) => c.id?.toString() === chatId?.toString());
+      if (chat) chat.isMuted = isMuted;
+    },
+
     /** Set the currently open conversation. */
     activeChatSet(state, { payload: chatId }) {
       state.activeChatId = chatId;
@@ -267,12 +280,19 @@ const chatSlice = createSlice({
     },
 
     /** Update delivery status for a set of message IDs (delivered / read). */
-    messagesStatusUpdated(state, { payload: { chatId, messageIds, status } }) {
+    messagesStatusUpdated(state, { payload: { chatId, messageIds, status, allRead } }) {
       if (!state.messages[chatId]) return;
-      const idSet = new Set(messageIds.map(String));
-      state.messages[chatId].items = state.messages[chatId].items.map((m) =>
-        idSet.has(m.id?.toString()) ? { ...m, status } : m
-      );
+      if (allRead) {
+        // Mark every message in this chat as read (user opened the chat)
+        state.messages[chatId].items = state.messages[chatId].items.map((m) =>
+          ({ ...m, status: 'read' })
+        );
+      } else {
+        const idSet = new Set((messageIds ?? []).map(String));
+        state.messages[chatId].items = state.messages[chatId].items.map((m) =>
+          idSet.has(m.id?.toString()) ? { ...m, status } : m
+        );
+      }
     },
 
     /** Replace an edited message in-place. */
@@ -433,6 +453,8 @@ export const {
   chatAdded,
   chatMetaUpdated,
   chatRemoved,
+  chatPinToggled,
+  chatMuteToggled,
   activeChatSet,
   markChatRead,
   unreadSynced,

@@ -3,6 +3,7 @@ const { toAuthUserDTO } = require('./auth.dto');
 const { ApiResponse } = require('../../core/response/api.response');
 const { asyncHandler } = require('../../shared/utils/async-handler');
 const { jwtConfig } = require('../../config/jwt.config');
+const { generateToken } = require('../../shared/helpers/token.helper');
 
 function setAuthCookie(res, token) {
   res.cookie(jwtConfig.cookie.name, token, jwtConfig.cookie.options);
@@ -58,7 +59,10 @@ const resetPassword = asyncHandler(async (req, res) => {
 });
 
 const getMe = asyncHandler(async (req, res) => {
-  return ApiResponse.success(res, toAuthUserDTO(req.user));
+  // Generate a fresh token so the client can reconnect the Socket.IO handshake
+  // after a page refresh (the cookie-based JWT can't be read by JS directly).
+  const socketToken = generateToken({ email: req.user.email, id: req.user._id.toString() });
+  return ApiResponse.success(res, { user: toAuthUserDTO(req.user), socketToken });
 });
 
 module.exports = {

@@ -126,6 +126,50 @@ async function leaveChat(chatId, userId) {
   return chatRepository.removeMember(chatId, userId);
 }
 
+async function togglePin(chatId, userId) {
+  const chat = await chatRepository.findById(chatId);
+  if (!chat) throw AppError.notFound('Chat');
+
+  const member = chat.members.find((m) => m.user.toString() === userId.toString());
+  if (!member) throw AppError.forbidden('Not a chat member', ERROR_CODES.NOT_CHAT_MEMBER);
+
+  const newValue = !member.isPinned;
+  await chatRepository.togglePinned(chatId, userId, newValue);
+  return { isPinned: newValue };
+}
+
+async function toggleMute(chatId, userId) {
+  const chat = await chatRepository.findById(chatId);
+  if (!chat) throw AppError.notFound('Chat');
+
+  const member = chat.members.find((m) => m.user.toString() === userId.toString());
+  if (!member) throw AppError.forbidden('Not a chat member', ERROR_CODES.NOT_CHAT_MEMBER);
+
+  const newValue = !member.isMuted;
+  await chatRepository.toggleMuted(chatId, userId, newValue);
+  return { isMuted: newValue };
+}
+
+async function deleteChat(chatId, userId) {
+  const chat = await chatRepository.findById(chatId);
+  if (!chat) throw AppError.notFound('Chat');
+
+  const isMember = chat.members.some((m) => m.user.toString() === userId.toString());
+  if (!isMember) throw AppError.forbidden('Not a chat member', ERROR_CODES.NOT_CHAT_MEMBER);
+
+  // For direct chats: remove this user from members (soft delete — other user keeps it)
+  // For group chats: only admin can delete; otherwise just leave
+  if (chat.type === CHAT_TYPES.GROUP) {
+    const member = chat.members.find((m) => m.user.toString() === userId.toString());
+    if (member?.role !== 'admin') {
+      return chatRepository.removeMember(chatId, userId);
+    }
+    await chatRepository.updateById(chatId, { isActive: false });
+  } else {
+    await chatRepository.removeMember(chatId, userId);
+  }
+}
+
 module.exports = {
   getOrCreateDirectChat,
   createGroupChat,
@@ -133,4 +177,7 @@ module.exports = {
   getChatById,
   markRead,
   leaveChat,
+  togglePin,
+  toggleMute,
+  deleteChat,
 };

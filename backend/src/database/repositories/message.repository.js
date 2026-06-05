@@ -96,6 +96,19 @@ class MessageRepository extends BaseRepository {
       { $set: { status } }
     );
   }
+
+  /** Mark all unread messages in a chat as read (called when user opens the chat). */
+  async markAllReadInChat(chatId, readerUserId) {
+    return Message.updateMany(
+      {
+        chat:      chatId,
+        sender:    { $ne: readerUserId }, // don't update own messages
+        status:    { $ne: 'read' },
+        isDeleted: false,
+      },
+      { $set: { status: 'read' } }
+    );
+  }
 }
 
 const messageRepository = new MessageRepository();

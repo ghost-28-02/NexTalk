@@ -84,7 +84,7 @@ export function ChatSidebar({ chats, activeChatId, onChatSelect, isMobile }) {
     <div
       className={cn(
         'flex flex-col bg-sidebar border-r border-sidebar-border h-full',
-        isMobile ? 'w-full' : 'w-80 shrink-0',
+        isMobile ? 'w-full' : 'w-1/3 shrink-0',
       )}
     >
       {/* Fixed header — shrink-0 prevents it from collapsing when the chat

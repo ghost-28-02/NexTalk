@@ -57,7 +57,11 @@ export const authApi = baseApi.injectEndpoints({
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          dispatch(setCredentials({ user: data.data }));
+          // data.data = { user, socketToken }
+          dispatch(setCredentials({
+            user:        data.data.user ?? data.data,
+            socketToken: data.data.socketToken ?? null,
+          }));
         } catch {
           dispatch(clearAuth());
         }

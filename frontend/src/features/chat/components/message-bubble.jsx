@@ -184,8 +184,9 @@ export function MessageBubble({ message, currentUserId, showAvatar = false, isGr
 
   return (
     <div className={cn('flex gap-2 animate-fade-in', isOwn ? 'justify-end' : 'justify-start')}>
-      {!isOwn && showAvatar && sender && <UserAvatar user={sender} size="sm" showStatus={false} />}
-      {!isOwn && !showAvatar && <div className="w-8" />}
+      {/* Avatar column: only in group chats for incoming messages */}
+      {!isOwn && isGroupChat && showAvatar && sender && <UserAvatar user={sender} size="sm" showStatus={false} />}
+      {!isOwn && isGroupChat && !showAvatar && <div className="w-8 shrink-0" />}
 
       <div className={cn('max-w-[70%] flex flex-col gap-1', isOwn ? 'items-end' : 'items-start')}>
         {isGroupChat && !isOwn && sender && (
@@ -217,17 +218,17 @@ export function MessageBubble({ message, currentUserId, showAvatar = false, isGr
   );
 }
 
-export function TypingIndicator({ userName }) {
+export function TypingIndicator() {
   return (
-    <div className="flex items-center gap-2 px-4 py-2">
-      <div className="flex items-center gap-1 bg-card border border-border rounded-2xl px-4 py-2.5">
-        <div className="flex gap-1">
+    <div className="flex items-center gap-2 py-1">
+      <div className="flex items-center gap-2 bg-card border border-border rounded-2xl rounded-bl-md px-4 py-2.5">
+        <div className="flex gap-1 items-center">
           {[0, 150, 300].map((delay) => (
             <span key={delay} className="h-2 w-2 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: `${delay}ms` }} />
           ))}
         </div>
+        <span className="text-xs text-muted-foreground">typing</span>
       </div>
-      {userName && <span className="text-xs text-muted-foreground">{userName} is typing...</span>}
     </div>
   );
 }

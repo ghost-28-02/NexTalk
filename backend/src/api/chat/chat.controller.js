@@ -37,4 +37,22 @@ const leaveChat = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, null, 'Left the chat');
 });
 
-module.exports = { getMyChats, getChatById, getOrCreateDirect, createGroup, markRead, leaveChat };
+const togglePin = asyncHandler(async (req, res) => {
+  const result = await chatService.togglePin(req.params.id, req.user._id);
+  return ApiResponse.success(res, result);
+});
+
+const toggleMute = asyncHandler(async (req, res) => {
+  const result = await chatService.toggleMute(req.params.id, req.user._id);
+  return ApiResponse.success(res, result);
+});
+
+const deleteChat = asyncHandler(async (req, res) => {
+  await chatService.deleteChat(req.params.id, req.user._id);
+  return ApiResponse.noContent(res);
+});
+
+module.exports = {
+  getMyChats, getChatById, getOrCreateDirect, createGroup,
+  markRead, leaveChat, togglePin, toggleMute, deleteChat,
+};

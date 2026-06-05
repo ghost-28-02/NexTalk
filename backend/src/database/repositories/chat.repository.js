@@ -101,6 +101,12 @@ class ChatRepository extends BaseRepository {
     return !!chat;
   }
 
+  /** Returns array of member user ObjectIds for a chat. */
+  async getMemberIds(chatId) {
+    const chat = await Chat.findById(chatId, 'members.user').lean();
+    return (chat?.members ?? []).map((m) => m.user);
+  }
+
   /**
    * Increment unreadCount for all members EXCEPT the sender.
    * Called in chat.handler.js every time a new message is sent via socket.

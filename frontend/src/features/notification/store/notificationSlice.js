@@ -52,13 +52,17 @@ const notificationSlice = createSlice({
      * Prepends to items and increments the badge.
      */
     notificationReceived(state, { payload: notification }) {
+      const { skipCount, ...notif } = notification;
       const exists = state.items.some(
-        (n) => n.id?.toString() === notification.id?.toString()
+        (n) => n.id?.toString() === notif.id?.toString()
       );
       if (!exists) {
-        state.items = [notification, ...state.items];
+        state.items = [notif, ...state.items];
       }
-      state.unreadCount += 1;
+      // Don't count message-type notifications in the bell badge
+      if (!skipCount) {
+        state.unreadCount += 1;
+      }
     },
 
     /** Mark one notification as read (optimistic — reflected immediately). */

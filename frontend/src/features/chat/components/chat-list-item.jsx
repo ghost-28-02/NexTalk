@@ -46,51 +46,60 @@ export function ChatListItem({ chat, currentUserId, isActive, onClick }) {
   const chatAvatar  = chat.avatar;
   const lastMsg     = chat.lastMessage;
 
+  const lastMsgPreview = lastMsg
+    ? (lastMsg.type === 'image' ? '📷 Photo'
+      : lastMsg.type === 'video' ? '🎥 Video'
+      : lastMsg.type === 'audio' ? '🎵 Audio'
+      : lastMsg.type === 'file'  ? '📎 File'
+      : lastMsg.content ?? 'Message deleted')
+    : '';
+
   return (
     <button
       onClick={onClick}
       className={cn(
         'w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200',
-        'hover:bg-accent/50 active:scale-[0.98]',
+        'hover:bg-accent/50 active:scale-[0.98] overflow-hidden',
         isActive && 'bg-accent/70 hover:bg-accent/70',
       )}
     >
-      {/* Avatar */}
-      {!isGroupChat && otherParticipant ? (
-        <UserAvatar user={otherParticipant} size="md" />
-      ) : (
-        <Avatar className="h-10 w-10 border-2 border-background">
-          <AvatarImage src={chatAvatar} alt={chatName} />
-          <AvatarFallback className="bg-primary/10 text-primary font-medium">
-            {chatName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      )}
-
-      {/* Content */}
-      <div className="flex-1 min-w-0 text-left">
-        <div className="flex items-center gap-2">
-          <span className="font-medium truncate">{chatName}</span>
-          {chat.isPinned && <Pin className="h-3 w-3 text-muted-foreground shrink-0" />}
-          {chat.isMuted  && <VolumeX className="h-3 w-3 text-muted-foreground shrink-0" />}
-        </div>
-        {lastMsg && (
-          <p className="text-sm text-muted-foreground truncate">
-            {lastMsg.senderId?.toString() === currentUserId?.toString() && 'You: '}
-            {lastMsg.content ?? 'Message deleted'}
-          </p>
+      {/* Avatar — shrink-0 so it never gets squeezed */}
+      <div className="shrink-0">
+        {!isGroupChat && otherParticipant ? (
+          <UserAvatar user={otherParticipant} size="md" />
+        ) : (
+          <Avatar className="h-10 w-10 border-2 border-background">
+            <AvatarImage src={chatAvatar} alt={chatName} />
+            <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm">
+              {chatName.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
         )}
       </div>
 
-      {/* Timestamp + unread badge */}
-      <div className="flex flex-col items-end gap-1 shrink-0">
+      {/* Content — min-w-0 is critical: allows flex child to shrink below content size */}
+      <div className="flex-1 min-w-0 text-left">
+        <div className="flex items-center gap-1">
+          <span className="font-medium text-sm truncate">{chatName}</span>
+          {chat.isPinned && <Pin className="h-3 w-3 text-muted-foreground shrink-0" />}
+          {chat.isMuted  && <VolumeX className="h-3 w-3 text-muted-foreground shrink-0" />}
+        </div>
+        <p className="text-xs text-muted-foreground truncate w-full">
+          {lastMsg
+            ? `${lastMsg.senderId?.toString() === currentUserId?.toString() ? 'You: ' : ''}${lastMsgPreview}`
+            : ''}
+        </p>
+      </div>
+
+      {/* Right column — shrink-0 with explicit width so it never expands or collapses */}
+      <div className="shrink-0 flex flex-col items-end gap-1 w-10">
         {lastMsg?.createdAt && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
             {formatTime(lastMsg.createdAt)}
           </span>
         )}
         {chat.unreadCount > 0 && (
-          <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium px-1.5">
+          <span className="h-4 min-w-4 px-1 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none">
             {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
           </span>
         )}

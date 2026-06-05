@@ -101,7 +101,7 @@ export default function ChatPage() {
       <div className="hidden md:flex flex-1 overflow-hidden">
         <ChatSidebar {...sidebarProps} />
 
-        <div className="flex-1 flex">
+        <div className="flex-1 flex overflow-hidden h-full">
           {activeChat ? (
             <>
               <ChatWindow {...windowProps} />

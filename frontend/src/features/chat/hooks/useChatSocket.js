@@ -57,16 +57,23 @@ export function useChatSocket() {
   useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
   useEffect(() => { currentUserRef.current  = currentUser;  }, [currentUser]);
 
-  // ── Room join / leave ────────────────────────────────────────────────────
+  // ── Room join / leave + mark existing messages as read ──────────────────
   useEffect(() => {
     if (!socket?.connected || !activeChatId) return;
 
     socket.emit(CHAT_EVENTS.JOIN_ROOM, { chatId: activeChatId });
 
+    // When navigating TO a chat, mark all unread messages as read immediately.
+    // Without this, read receipts only fire when a NEW message arrives in the
+    // active chat — so messages received while you were on a different chat
+    // would stay as single-tick (sent) even after you open and read them.
+    markRead(activeChatId).catch(() => {});
+    socket.emit(CHAT_EVENTS.MESSAGE_READ, { chatId: activeChatId, messageIds: [] });
+
     return () => {
       socket.emit(CHAT_EVENTS.LEAVE_ROOM, { chatId: activeChatId });
     };
-  }, [socket, activeChatId]);
+  }, [socket, activeChatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Event listeners (registered once per socket instance) ────────────────
   useEffect(() => {
@@ -111,8 +118,8 @@ export function useChatSocket() {
       dispatch(messagesStatusUpdated({ chatId, messageIds, status: 'delivered' }));
     };
 
-    const onMessageRead = ({ chatId, messageIds }) => {
-      dispatch(messagesStatusUpdated({ chatId, messageIds, status: 'read' }));
+    const onMessageRead = ({ chatId, messageIds, allRead }) => {
+      dispatch(messagesStatusUpdated({ chatId, messageIds, status: 'read', allRead: allRead ?? false }));
     };
 
     // ── Edit / delete ─────────────────────────────────────────────────────

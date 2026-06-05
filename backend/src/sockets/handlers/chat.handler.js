@@ -315,14 +315,23 @@ function registerChatHandler(io, socket) {
 
   socket.on(CHAT_EVENTS.MESSAGE_READ, async ({ chatId, messageIds }) => {
     try {
+      const hasSpecificIds = Array.isArray(messageIds) && messageIds.length > 0;
       await Promise.all([
-        Array.isArray(messageIds) && messageIds.length > 0
+        hasSpecificIds
           ? messageRepository.bulkUpdateStatus(messageIds, 'read')
-          : Promise.resolve(),
+          // Empty messageIds = user opened the chat — mark ALL unread messages as read
+          : messageRepository.markAllReadInChat(chatId, userId),
         chatRepository.updateLastRead(chatId, userId),
         chatRepository.resetUnreadCount(chatId, userId),
       ]);
-      socket.to(chatId).emit(CHAT_EVENTS.MESSAGE_READ, { chatId, userId, messageIds });
+      // allRead:true tells the frontend to mark ALL messages in the chat as read
+      // (used when messageIds is empty — user opened the chat).
+      socket.to(chatId).emit(CHAT_EVENTS.MESSAGE_READ, {
+        chatId,
+        userId,
+        messageIds,
+        allRead: !hasSpecificIds,
+      });
       io.to(`user:${userId}`).emit(CHAT_EVENTS.UNREAD_UPDATED, { chatId, unreadCount: 0 });
     } catch (err) {
       logger.error('[Chat] message_read error', { err: err.message });

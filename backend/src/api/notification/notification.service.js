@@ -66,7 +66,8 @@ async function deleteNotification(notificationId, userId) {
 }
 
 async function getUnreadCount(userId) {
-  return Notification.countDocuments({ recipient: userId, isRead: false });
+  // Exclude 'message' type — those are surfaced as chat unread badges, not bell count.
+  return Notification.countDocuments({ recipient: userId, isRead: false, type: { $ne: 'message' } });
 }
 
 /**

@@ -10,7 +10,10 @@ router.get('/', controller.getMyChats);
 router.post('/direct', controller.getOrCreateDirect);
 router.post('/group', controller.createGroup);
 router.get('/:id', controller.getChatById);
-router.patch('/:id/read', controller.markRead);
+router.patch('/:id/read',   controller.markRead);
+router.patch('/:id/pin',    controller.togglePin);
+router.patch('/:id/mute',   controller.toggleMute);
 router.delete('/:id/leave', controller.leaveChat);
+router.delete('/:id',       controller.deleteChat);
 
 module.exports = router;

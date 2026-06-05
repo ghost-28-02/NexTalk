@@ -76,6 +76,19 @@ export const chatApi = baseApi.injectEndpoints({
       invalidatesTags: ['Chat'],
     }),
 
+    togglePin: builder.mutation({
+      query: (chatId) => ({ url: `/chats/${chatId}/pin`, method: 'PATCH' }),
+    }),
+
+    toggleMute: builder.mutation({
+      query: (chatId) => ({ url: `/chats/${chatId}/mute`, method: 'PATCH' }),
+    }),
+
+    deleteChat: builder.mutation({
+      query: (chatId) => ({ url: `/chats/${chatId}`, method: 'DELETE' }),
+      invalidatesTags: ['Chat'],
+    }),
+
     // ── Messages ──────────────────────────────────────────────────────────────
 
     /**
@@ -172,4 +185,7 @@ export const {
   useDeleteMessageMutation,
   useAddReactionMutation,
   useRemoveReactionMutation,
+  useTogglePinMutation,
+  useToggleMuteMutation,
+  useDeleteChatMutation,
 } = chatApi;

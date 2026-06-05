@@ -67,8 +67,9 @@ export function useNotificationSocket() {
     const onNotificationNew = (notification) => {
       if (!notification?.id) return;
 
-      // 1. Add to notification list + increment badge
-      dispatch(notificationReceived(notification));
+      // 1. Add to notification list — but only increment bell badge for non-message types.
+      //    Message notifications are surfaced as chat unread badges, not the bell count.
+      dispatch(notificationReceived({ ...notification, skipCount: notification.type === 'message' }));
 
       // 2. Bump unread badge on the chat entry in chatSlice.
       //    This handles the case where the user is NOT in the chat room

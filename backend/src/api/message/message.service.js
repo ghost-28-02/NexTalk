@@ -42,7 +42,40 @@ async function sendMessage(senderId, chatId, { content, type = MESSAGE_TYPES.TEX
 
   await chatRepository.setLastMessage(chatId, message._id);
 
-  return message;
+  // Populate sender so the DTO has full sender info for the socket broadcast
+  const { Message } = require('../../database/models/Message.model');
+  const populated = await Message.findById(message._id)
+    .populate('sender', 'username displayName avatar')
+    .lean();
+
+  const { toMessageDTO } = require('../message/message.dto');
+  const payload = toMessageDTO(populated);
+
+  // Broadcast to everyone in the chat room (including the sender's own socket).
+  // Room name is plain chatId — matches socket.join(chatId) in chat.handler.js.
+  tryEmit(chatId.toString(), CHAT_EVENTS.MESSAGE_SENT, { message: payload });
+
+  // Notify members NOT in the chat room (background tabs / other devices)
+  // so their sidebar preview and unread count updates.
+  const members = await chatRepository.getMemberIds(chatId);
+  for (const memberId of members) {
+    const uid = memberId.toString();
+    if (uid !== senderId.toString()) {
+      tryEmit(`user:${uid}`, CHAT_EVENTS.CHAT_UPDATED, {
+        chatId: chatId.toString(),
+        lastMessage: {
+          id:        payload.id,
+          senderId:  payload.senderId,
+          content:   payload.content,
+          type:      payload.type,
+          status:    payload.status,
+          createdAt: payload.createdAt,
+        },
+      });
+    }
+  }
+
+  return populated;
 }
 
 /**
