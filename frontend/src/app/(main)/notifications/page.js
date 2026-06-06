@@ -173,7 +173,7 @@ export default function NotificationsPage() {
   const unreadCount      = useSelector(selectNotificationUnreadCount);
   const isLoaded         = useSelector(selectNotificationsLoaded);
 
-  const { isFetching } = useGetNotificationsQuery({}, { refetchOnMountOrArgChange: false });
+  const { isFetching } = useGetNotificationsQuery({}, { refetchOnMountOrArgChange: true });
   const [markAllRead]  = useMarkAllNotificationsReadMutation();
 
   // Exclude plain message notifications — those are already visible as

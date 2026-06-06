@@ -385,10 +385,6 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
       {/* ── Messages ─────────────────────────────────────────────────────── */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4">
         <div className="space-y-1 max-w-3xl mx-auto">
-          <div className="flex items-center justify-center mb-4">
-            <span className="px-3 py-1 rounded-full bg-muted text-xs text-muted-foreground">Today</span>
-          </div>
-
           {(messages ?? []).map((message, index) => {
             const prevMessage = messages[index - 1];
             const nextMessage = messages[index + 1];
@@ -397,15 +393,49 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
             );
             const isNewSender = !prevMessage || prevMessage.senderId !== message.senderId;
             const isLastFromSender = !nextMessage || nextMessage.senderId !== message.senderId;
+
+            // Show a date separator whenever the day changes (or for the first message)
+            const msgDate  = message.createdAt ? new Date(message.createdAt) : null;
+            const prevDate = prevMessage?.createdAt ? new Date(prevMessage.createdAt) : null;
+            const isDifferentDay = !prevDate || (
+              msgDate &&
+              (msgDate.getFullYear() !== prevDate.getFullYear() ||
+               msgDate.getMonth()    !== prevDate.getMonth()    ||
+               msgDate.getDate()     !== prevDate.getDate())
+            );
+
+            let dateLabel = '';
+            if (isDifferentDay && msgDate) {
+              const now              = new Date();
+              const startOfToday     = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              const startOfYesterday = new Date(startOfToday - 86_400_000);
+              if (msgDate >= startOfToday) {
+                dateLabel = 'Today';
+              } else if (msgDate >= startOfYesterday) {
+                dateLabel = 'Yesterday';
+              } else {
+                dateLabel = msgDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: msgDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+              }
+            }
+
             return (
-              <div key={message.id} className={cn(isNewSender && 'mt-3')}>
-                <MessageBubble
-                  message={message}
-                  currentUserId={currentUser?.id}
-                  showAvatar={showAvatar}
-                  isGroupChat={isGroupChat}
-                  isLastFromSender={isLastFromSender}
-                />
+              <div key={message.id}>
+                {isDifferentDay && dateLabel && (
+                  <div className="flex items-center justify-center my-4">
+                    <span className="px-3 py-1 rounded-full bg-muted text-xs text-muted-foreground">
+                      {dateLabel}
+                    </span>
+                  </div>
+                )}
+                <div className={cn(isNewSender && 'mt-3')}>
+                  <MessageBubble
+                    message={message}
+                    currentUserId={currentUser?.id}
+                    showAvatar={showAvatar}
+                    isGroupChat={isGroupChat}
+                    isLastFromSender={isLastFromSender}
+                  />
+                </div>
               </div>
             );
           })}

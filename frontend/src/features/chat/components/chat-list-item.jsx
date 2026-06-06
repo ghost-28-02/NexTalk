@@ -5,14 +5,33 @@ import { UserAvatar } from '@/components/common';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Pin, VolumeX } from 'lucide-react';
 
-/** Format ISO → "h:mm AM/PM", falling back to empty string. */
+/**
+ * Format ISO timestamp for chat list:
+ *   Today     → "3:45 PM"
+ *   Yesterday → "Yesterday"
+ *   This week → "Mon", "Tue", …
+ *   Older     → "12/25/24"
+ */
 function formatTime(isoString) {
   if (!isoString) return '';
   try {
-    return new Date(isoString).toLocaleTimeString([], {
-      hour:   'numeric',
-      minute: '2-digit',
-    });
+    const date = new Date(isoString);
+    const now  = new Date();
+
+    const startOfToday     = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(startOfToday - 86_400_000);
+    const startOfWeek      = new Date(startOfToday - 6 * 86_400_000);
+
+    if (date >= startOfToday) {
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    if (date >= startOfYesterday) {
+      return 'Yesterday';
+    }
+    if (date >= startOfWeek) {
+      return date.toLocaleDateString([], { weekday: 'short' }); // "Mon", "Tue", …
+    }
+    return date.toLocaleDateString([], { month: 'numeric', day: 'numeric', year: '2-digit' });
   } catch {
     return '';
   }
