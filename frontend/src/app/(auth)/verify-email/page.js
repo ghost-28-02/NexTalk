@@ -25,7 +25,7 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (!pendingEmail && !didVerifyRef.current) {
-      router.replace('/signup');
+      router.replace('/login');
     }
   }, [pendingEmail, router]);
 

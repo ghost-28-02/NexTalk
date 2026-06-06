@@ -43,7 +43,7 @@ function errorMiddleware(err, req, res, next) {
     logger.error('Operational error 5xx', { message: error.message, path: req.path });
   }
 
-  return ApiResponse.error(res, error.message, error.statusCode, error.code);
+  return ApiResponse.error(res, error.message, error.statusCode, error.code, error.data ?? null);
 }
 
 function notFoundMiddleware(req, res) {

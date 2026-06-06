@@ -1,10 +1,11 @@
 const { HTTP_STATUS } = require('../../shared/constants/status');
 
 class AppError extends Error {
-  constructor(message, statusCode = HTTP_STATUS.INTERNAL_ERROR, code = null) {
+  constructor(message, statusCode = HTTP_STATUS.INTERNAL_ERROR, code = null, data = null) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
+    this.data = data;
     this.isOperational = true;
     Error.captureStackTrace(this, this.constructor);
   }

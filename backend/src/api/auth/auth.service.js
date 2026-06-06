@@ -69,6 +69,38 @@ async function login({ identifier, password }) {
   const isMatch = await userDoc.comparePassword(password);
   if (!isMatch) throw AppError.unauthorized('Invalid credentials', ERROR_CODES.INVALID_CREDENTIALS);
 
+  // Block login if email is not verified — send a fresh OTP and tell the client to verify
+  if (!user.isEmailVerified) {
+    // Resend OTP (best-effort — ignore cooldown errors here so login UX isn't broken)
+    try {
+      const latest = await otpRepository.findLatestAny(user.email, OTP_TYPES.EMAIL_VERIFICATION);
+      const elapsed = latest ? Date.now() - new Date(latest.createdAt).getTime() : Infinity;
+      if (elapsed >= RESEND_COOLDOWN_MS) {
+        const otp = generateOTP();
+        await otpRepository.deleteExpiredForEmail(user.email, OTP_TYPES.EMAIL_VERIFICATION);
+        await otpRepository.create({
+          email: user.email,
+          otp,
+          type: OTP_TYPES.EMAIL_VERIFICATION,
+          expiresAt: getOTPExpiry(),
+        });
+        const displayName = user.displayName || user.username;
+        emailService.sendVerificationEmail(user.email, otp, displayName).catch((err) =>
+          logger.error('[Auth] Failed to resend verification email on login', { email: user.email, err: err.message })
+        );
+      }
+    } catch (err) {
+      logger.error('[Auth] OTP resend during login failed', { err: err.message });
+    }
+
+    throw new AppError(
+      'Please verify your email before logging in. A new code has been sent.',
+      401,
+      ERROR_CODES.EMAIL_NOT_VERIFIED,
+      { email: user.email }
+    );
+  }
+
   // Generate JWT with email and id in payload
   const token = generateToken({ email: user.email, id: user._id.toString() });
 

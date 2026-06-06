@@ -24,9 +24,10 @@ class ApiResponse {
     });
   }
 
-  static error(res, message = 'Something went wrong', statusCode = HTTP_STATUS.INTERNAL_ERROR, code = null) {
+  static error(res, message = 'Something went wrong', statusCode = HTTP_STATUS.INTERNAL_ERROR, code = null, data = null) {
     const body = { success: false, message };
     if (code) body.code = code;
+    if (data !== null) body.data = data;
     return res.status(statusCode).json(body);
   }
 }

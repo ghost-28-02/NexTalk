@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { useLoginMutation } from '@/features/auth';
+import { useDispatch } from 'react-redux';
+import { useLoginMutation, setPendingEmail } from '@/features/auth';
 
 export default function LoginPage() {
-  const router = useRouter();
+  const router   = useRouter();
+  const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +28,13 @@ export default function LoginPage() {
       await login({ identifier, password }).unwrap();
       router.replace('/chat');
     } catch (err) {
+      if (err?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        const email = err?.data?.data?.email;
+        if (email) dispatch(setPendingEmail(email));
+        toast.info(err.data.message);
+        router.push('/verify-email');
+        return;
+      }
       toast.error(err?.data?.message ?? 'Login failed. Please check your credentials.');
     }
   };
