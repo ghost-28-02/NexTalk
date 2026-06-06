@@ -7,7 +7,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { UserAvatar } from '@/components/common';
-import { MobileNav } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -645,16 +644,11 @@ export default function ContactsPage() {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col">
+    <div className="h-full bg-background flex flex-col">
       {/* Header */}
       <header className="p-4 border-b border-border bg-card/50 backdrop-blur-sm shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Link href="/chat">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
             <h1 className="text-xl font-bold">Contacts</h1>
           </div>
         </div>
@@ -711,9 +705,6 @@ export default function ContactsPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="md:hidden">
-        <MobileNav activePage="contacts" />
-      </div>
     </div>
   );
 }

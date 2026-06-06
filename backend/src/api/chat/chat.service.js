@@ -65,23 +65,47 @@ async function getOrCreateDirectChat(currentUserId, targetUserId) {
 }
 
 async function createGroupChat(currentUserId, { name, memberIds, description }) {
-  if (!name?.trim())     throw AppError.badRequest('Group name is required');
+  if (!name?.trim())      throw AppError.badRequest('Group name is required');
   if (!memberIds?.length) throw AppError.badRequest('At least one member is required');
 
-  const uniqueIds = [...new Set([currentUserId.toString(), ...memberIds])];
+  const uniqueIds = [...new Set([currentUserId.toString(), ...memberIds.map(String)])];
 
   const members = uniqueIds.map((id) => ({
     user: id,
     role: id === currentUserId.toString() ? 'admin' : 'member',
   }));
 
-  return chatRepository.create({
+  const raw = await chatRepository.create({
     type: CHAT_TYPES.GROUP,
     name: name.trim(),
     description: description?.trim(),
     members,
     createdBy: currentUserId,
   });
+
+  // Populate so the DTO has real user data (displayName, avatar, etc.)
+  let populated = null;
+  try {
+    populated = await chatRepository.findByIdPopulated(raw._id);
+  } catch {
+    // Fall back to raw — HTTP response still succeeds
+  }
+
+  const chat = populated ?? raw;
+
+  // Notify every member's personal room so their sidebar updates instantly
+  if (populated) {
+    for (const memberId of uniqueIds) {
+      try {
+        const memberDTO = toChatDTO(populated, memberId);
+        tryEmit(`user:${memberId}`, CHAT_EVENTS.NEW_CHAT, { chat: memberDTO });
+      } catch {
+        // Never block on socket errors
+      }
+    }
+  }
+
+  return chat;
 }
 
 async function getUserChats(userId, query) {

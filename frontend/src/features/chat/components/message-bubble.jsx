@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, CheckCheck, Download, FileText, Film, Music, Phone, Video, X } from 'lucide-react';
+import { Check, CheckCheck, Download, FileText, Film, Music, X } from 'lucide-react';
 import { UserAvatar } from '@/components/common';
 
 function formatTime(isoString) {
@@ -104,16 +104,6 @@ function FileBubble({ media, isOwn }) {
   );
 }
 
-function CallBubble({ message, isOwn }) {
-  const isVideo = message.content?.toLowerCase().includes('video');
-  return (
-    <div className={cn('flex items-center gap-3 rounded-xl px-3 py-2.5 min-w-[180px]', isOwn ? 'bg-primary/80 text-primary-foreground' : 'bg-muted/60')}>
-      {isVideo ? <Video className="h-5 w-5 shrink-0 opacity-70" /> : <Phone className="h-5 w-5 shrink-0 opacity-70" />}
-      <p className="text-sm font-medium">{message.content || 'Call'}</p>
-    </div>
-  );
-}
-
 // ─── Content router ───────────────────────────────────────────────────────────
 
 function MessageContent({ message, isOwn }) {
@@ -152,10 +142,6 @@ function MessageContent({ message, isOwn }) {
         {content && <p className="text-sm mt-1.5 whitespace-pre-wrap">{content}</p>}
       </>
     );
-  }
-
-  if (type === 'call') {
-    return <CallBubble message={message} isOwn={isOwn} />;
   }
 
   return <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>;

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -18,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  ArrowLeft, Phone, Video, MoreVertical, Send, Paperclip,
+  ArrowLeft, MoreVertical, Send, Paperclip,
   Smile, Image as ImageIcon, FileText, Info, Search, Pin,
   VolumeX, Trash2, Archive, X, Loader2, Film, File,
 } from 'lucide-react';
@@ -226,7 +225,6 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
   const { handleTyping, stopTyping } = useTyping(socket, chat?.id?.toString());
   const { sendMessage }              = useChatActions();
   const [sendMediaMessage]           = useSendMediaMessageMutation();
-
   const isGroupChat      = chat?.type === 'group';
   const chatName         = chat?.name || 'Chat';
   const chatAvatar       = chat?.avatar;
@@ -376,12 +374,6 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
         </div>
 
         <div className="flex items-center gap-1">
-          <Link href={`/call/audio?chat=${chat.id}`}>
-            <Button variant="ghost" size="icon"><Phone className="h-5 w-5" /></Button>
-          </Link>
-          <Link href={`/call/video?chat=${chat.id}`}>
-            <Button variant="ghost" size="icon"><Video className="h-5 w-5" /></Button>
-          </Link>
           {!isMobile && (
             <Button variant={showInfoPanel ? 'secondary' : 'ghost'} size="icon" onClick={onToggleInfo}>
               <Info className="h-5 w-5" />

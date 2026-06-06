@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   X, Bell, BellOff, Pin, PinOff, Search, Image as ImageIcon,
   FileText, ChevronRight, ChevronDown, UserPlus, LogOut, Trash2,
-  Phone, Video, Mail, Globe, MessageSquare, Shield, Film, Music,
+  Mail, Globe, MessageSquare, Shield, Film, Music,
 } from 'lucide-react';
 import { selectChatMessages, activeChatSet, chatRemoved, chatPinToggled, chatMuteToggled } from '../store/chatSlice';
 import { useLeaveChatMutation, useTogglePinMutation, useToggleMuteMutation, useDeleteChatMutation } from '../services/chatApi';
@@ -295,22 +295,6 @@ export function ChatInfoPanel({ chat, onClose }) {
 
           {/* ── Quick actions ─────────────────────────────────────────────── */}
           <div className="flex justify-center gap-3">
-            {!isGroupChat && (
-              <>
-                <div className="flex flex-col items-center gap-1">
-                  <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl">
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                  <span className="text-[9px] text-muted-foreground">Audio</span>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl">
-                    <Video className="h-4 w-4" />
-                  </Button>
-                  <span className="text-[9px] text-muted-foreground">Video</span>
-                </div>
-              </>
-            )}
             <div className="flex flex-col items-center gap-1">
               <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl" onClick={handleMute}>
                 {chat.isMuted

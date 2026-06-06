@@ -40,53 +40,6 @@ const PRESENCE_EVENTS = Object.freeze({
   BULK_STATUS:   'presence:bulk_status',
 });
 
-/**
- * Call signaling events.
- *
- * Client → Server (emitted by the client):
- *   INITIATE      — caller starts a call
- *   ACCEPT        — callee accepts the incoming call
- *   DECLINE       — callee declines
- *   END           — either party ends the active call
- *   RECONNECT     — ICE failure recovery signal
- *   ICE_CANDIDATE — trickle ICE candidate relay
- *   SDP_OFFER     — SDP offer relay (caller → callee during re-negotiation)
- *   SDP_ANSWER    — SDP answer relay (callee → caller)
- *   NOTIFY_MUTED       — tell remote peer local user toggled mute
- *   NOTIFY_VIDEO_OFF   — tell remote peer local user toggled camera
- *
- * Server → Client (emitted by the server):
- *   INCOMING      — callee receives notification of incoming call
- *   ACCEPTED      — caller learns callee accepted
- *   DECLINED      — caller learns callee declined
- *   ENDED         — both peers learn the call ended
- *   MISSED        — callee ring timeout expired
- *   REMOTE_MUTED      — remote peer toggled mute
- *   REMOTE_VIDEO_OFF  — remote peer toggled camera
- */
-const CALL_EVENTS = Object.freeze({
-  // Client → Server
-  INITIATE:         'call:initiate',
-  ACCEPT:           'call:accept',
-  DECLINE:          'call:decline',
-  END:              'call:end',
-  RECONNECT:        'call:reconnect',
-  ICE_CANDIDATE:    'call:ice_candidate',
-  SDP_OFFER:        'call:sdp_offer',
-  SDP_ANSWER:       'call:sdp_answer',
-  NOTIFY_MUTED:     'call:notify_muted',
-  NOTIFY_VIDEO_OFF: 'call:notify_video_off',
-
-  // Server → Client
-  INCOMING:         'call:incoming',
-  ACCEPTED:         'call:accepted',
-  DECLINED:         'call:declined',
-  ENDED:            'call:ended',
-  MISSED:           'call:missed',
-  REMOTE_MUTED:     'call:remote_muted',
-  REMOTE_VIDEO_OFF: 'call:remote_video_off',
-});
-
 const NOTIFICATION_EVENTS = Object.freeze({
   NEW:      'notification:new',
   READ:     'notification:read',
@@ -123,7 +76,6 @@ const USER_EVENTS = Object.freeze({
 module.exports = {
   CHAT_EVENTS,
   PRESENCE_EVENTS,
-  CALL_EVENTS,
   NOTIFICATION_EVENTS,
   SYSTEM_EVENTS,
   USER_EVENTS,

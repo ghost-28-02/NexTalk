@@ -2,7 +2,6 @@ const { Server } = require('socket.io');
 const { socketAuth } = require('./socket.auth');
 const { registerPresenceHandler } = require('./handlers/presence.handler');
 const { registerChatHandler } = require('./handlers/chat.handler');
-const { registerCallHandler } = require('./handlers/call.handler');
 const { registerNotificationHandler } = require('./handlers/notification.handler');
 const { SYSTEM_EVENTS } = require('../shared/constants/events');
 const { logger } = require('../shared/utils/logger');
@@ -64,7 +63,6 @@ function initSocketManager(httpServer) {
     // Each handler owns its own event subscriptions.
     registerPresenceHandler(io, socket);
     registerChatHandler(io, socket);
-    registerCallHandler(io, socket);
     registerNotificationHandler(io, socket);
 
     // ── Health check ping/pong ───────────────────────────────────────────────

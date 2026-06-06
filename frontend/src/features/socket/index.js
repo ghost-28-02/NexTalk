@@ -27,7 +27,6 @@ export { useTyping } from './hooks/useTyping';
 export {
   CHAT_EVENTS,
   PRESENCE_EVENTS,
-  CALL_EVENTS,
   NOTIFICATION_EVENTS,
   SYSTEM_EVENTS,
 } from './constants/socketEvents';

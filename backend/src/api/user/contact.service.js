@@ -4,6 +4,25 @@ const { AppError } = require('../../core/errors/AppError');
 const { ERROR_CODES } = require('../../core/errors/error.codes');
 const { CONTACT_STATUS } = require('../../database/models/Contact.model');
 const { parsePagination, buildPaginationMeta } = require('../../shared/utils/pagination');
+const { createNotification } = require('../notification/notification.service');
+const { toNotificationDTO } = require('../notification/notification.dto');
+const { NOTIFICATION_EVENTS } = require('../../shared/constants/events');
+
+/** Lazy emit — avoids circular import at module-load time. */
+function tryEmit(room, event, data) {
+  try {
+    const { getIO } = require('../../sockets/socket.manager');
+    getIO().to(room).emit(event, data);
+  } catch { /* socket not yet initialised — safe to ignore */ }
+}
+
+/** Fetch a user's display name for notification copy. */
+async function resolveUserName(userId) {
+  try {
+    const u = await userRepository.findById(userId, 'username displayName');
+    return u?.displayName || u?.username || 'Someone';
+  } catch { return 'Someone'; }
+}
 
 // ─── Send / Manage Requests ───────────────────────────────────────────────────
 
@@ -55,10 +74,10 @@ async function sendRequest(requesterId, recipientId) {
         );
       }
 
-      case CONTACT_STATUS.REJECTED:
+      case CONTACT_STATUS.REJECTED: {
         // Allow re-requesting after rejection — update the document so the
         // compound unique index doesn't block it.
-        return contactRepository.updateOne(
+        const updated = await contactRepository.updateOne(
           { _id: existing._id },
           {
             requester: requesterId,
@@ -68,18 +87,48 @@ async function sendRequest(requesterId, recipientId) {
             respondedAt: null,
           }
         );
+        await _notifyContactRequest(requesterId, recipientId);
+        return updated;
+      }
 
       default:
         break;
     }
   }
 
-  return contactRepository.create({
+  const contact = await contactRepository.create({
     requester: requesterId,
     recipient: recipientId,
     status: CONTACT_STATUS.PENDING,
     requestedAt: new Date(),
   });
+  await _notifyContactRequest(requesterId, recipientId);
+  return contact;
+}
+
+/**
+ * Create + deliver a 'contact_request' notification to the recipient.
+ * Fire-and-forget — failures are swallowed so they never block the HTTP response.
+ */
+async function _notifyContactRequest(requesterId, recipientId) {
+  try {
+    const senderName = await resolveUserName(requesterId);
+    const raw = await createNotification({
+      recipient: recipientId,
+      sender:    requesterId,
+      type:      'contact_request',
+      title:     'Contact request',
+      body:      `${senderName} sent you a contact request`,
+      data:      { userId: requesterId.toString() },
+    });
+    const populated = await raw.populate('sender', 'username displayName avatar');
+    tryEmit(`user:${recipientId.toString()}`, NOTIFICATION_EVENTS.NEW, {
+      notification: toNotificationDTO(populated),
+    });
+  } catch (err) {
+    // Non-fatal — log but don't rethrow
+    console.error('[contact] _notifyContactRequest failed:', err?.message);
+  }
 }
 
 /**
@@ -98,10 +147,35 @@ async function acceptRequest(recipientId, requesterId) {
     throw AppError.forbidden('You cannot accept a request you sent');
   }
 
-  return contactRepository.updateOne(
+  const accepted = await contactRepository.updateOne(
     { _id: contact._id },
     { status: CONTACT_STATUS.ACCEPTED, respondedAt: new Date() }
   );
+  await _notifyContactAccepted(recipientId, requesterId);
+  return accepted;
+}
+
+/**
+ * Create + deliver a 'contact_accepted' notification to the original requester.
+ */
+async function _notifyContactAccepted(acceptorId, requesterId) {
+  try {
+    const acceptorName = await resolveUserName(acceptorId);
+    const raw = await createNotification({
+      recipient: requesterId,
+      sender:    acceptorId,
+      type:      'contact_accepted',
+      title:     'Contact request accepted',
+      body:      `${acceptorName} accepted your contact request`,
+      data:      { userId: acceptorId.toString() },
+    });
+    const populated = await raw.populate('sender', 'username displayName avatar');
+    tryEmit(`user:${requesterId.toString()}`, NOTIFICATION_EVENTS.NEW, {
+      notification: toNotificationDTO(populated),
+    });
+  } catch (err) {
+    console.error('[contact] _notifyContactAccepted failed:', err?.message);
+  }
 }
 
 /**

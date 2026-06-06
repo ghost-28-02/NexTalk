@@ -400,9 +400,6 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-background">
       {/* ── Sticky header ─────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 backdrop-blur-sm px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
         <div>
           <h1 className="font-semibold text-sm">Settings</h1>
           <p className="text-[11px] text-muted-foreground">Preferences and account management</p>

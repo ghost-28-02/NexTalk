@@ -2,7 +2,6 @@
 
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import { MobileNav } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -183,12 +182,9 @@ export default function NotificationsPage() {
   const unreadNotifications = notifications.filter((n) => !n.isRead);
 
   return (
-    <div className="h-screen bg-background flex flex-col">
+    <div className="h-full bg-background flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 backdrop-blur-sm px-4 py-3 shrink-0">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
         <div className="flex-1">
           <h1 className="font-semibold text-sm">Notifications</h1>
           {unreadCount > 0 && (
@@ -243,9 +239,6 @@ export default function NotificationsPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="md:hidden">
-        <MobileNav activePage="alerts" />
-      </div>
     </div>
   );
 }
