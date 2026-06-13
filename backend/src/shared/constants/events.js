@@ -33,6 +33,37 @@ const CHAT_EVENTS = Object.freeze({
   NEW_CHAT:           'chat:new_chat',
 });
 
+/**
+ * WebRTC call signaling events.
+ *
+ * The server is a pure SIGNALING RELAY — it never touches media.
+ * Media (audio/video) flows peer-to-peer via WebRTC.
+ *
+ * Client → Server (relayed to `user:{targetUserId}`):
+ *   INITIATE       — caller starts a call        → relayed as INCOMING
+ *   ACCEPT         — callee accepts              → relayed as ACCEPTED
+ *   REJECT         — callee declines             → relayed as REJECTED
+ *   END            — either side hangs up        → relayed as ENDED
+ *   OFFER          — caller's SDP offer          → relayed verbatim
+ *   ANSWER         — callee's SDP answer         → relayed verbatim
+ *   ICE_CANDIDATE  — trickle ICE candidates      → relayed verbatim
+ */
+const CALL_EVENTS = Object.freeze({
+  // Client → Server
+  INITIATE:      'call:initiate',
+  ACCEPT:        'call:accept',
+  REJECT:        'call:reject',
+  END:           'call:end',
+  OFFER:         'call:offer',
+  ANSWER:        'call:answer',
+  ICE_CANDIDATE: 'call:ice_candidate',
+  // Server → Client
+  INCOMING:      'call:incoming',
+  ACCEPTED:      'call:accepted',
+  REJECTED:      'call:rejected',
+  ENDED:         'call:ended',
+});
+
 const PRESENCE_EVENTS = Object.freeze({
   USER_ONLINE:   'presence:user_online',
   USER_OFFLINE:  'presence:user_offline',
@@ -75,6 +106,7 @@ const USER_EVENTS = Object.freeze({
 
 module.exports = {
   CHAT_EVENTS,
+  CALL_EVENTS,
   PRESENCE_EVENTS,
   NOTIFICATION_EVENTS,
   SYSTEM_EVENTS,

@@ -29,6 +29,26 @@ export const CHAT_EVENTS = Object.freeze({
   NEW_CHAT:           'chat:new_chat',
 });
 
+/**
+ * WebRTC call signaling events — server is a pure relay, media is P2P.
+ * Mirror of backend CALL_EVENTS.
+ */
+export const CALL_EVENTS = Object.freeze({
+  // Client → Server
+  INITIATE:      'call:initiate',
+  ACCEPT:        'call:accept',
+  REJECT:        'call:reject',
+  END:           'call:end',
+  OFFER:         'call:offer',
+  ANSWER:        'call:answer',
+  ICE_CANDIDATE: 'call:ice_candidate',
+  // Server → Client
+  INCOMING:      'call:incoming',
+  ACCEPTED:      'call:accepted',
+  REJECTED:      'call:rejected',
+  ENDED:         'call:ended',
+});
+
 export const PRESENCE_EVENTS = Object.freeze({
   USER_ONLINE:   'presence:user_online',
   USER_OFFLINE:  'presence:user_offline',

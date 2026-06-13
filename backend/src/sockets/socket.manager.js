@@ -3,6 +3,7 @@ const { socketAuth } = require('./socket.auth');
 const { registerPresenceHandler } = require('./handlers/presence.handler');
 const { registerChatHandler } = require('./handlers/chat.handler');
 const { registerNotificationHandler } = require('./handlers/notification.handler');
+const { registerCallHandler } = require('./handlers/call.handler');
 const { SYSTEM_EVENTS } = require('../shared/constants/events');
 const { logger } = require('../shared/utils/logger');
 
@@ -64,6 +65,7 @@ function initSocketManager(httpServer) {
     registerPresenceHandler(io, socket);
     registerChatHandler(io, socket);
     registerNotificationHandler(io, socket);
+    registerCallHandler(io, socket);
 
     // ── Health check ping/pong ───────────────────────────────────────────────
     socket.on(SYSTEM_EVENTS.PING, () => {

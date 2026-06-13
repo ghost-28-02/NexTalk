@@ -20,12 +20,15 @@ import {
   ArrowLeft, MoreVertical, Send, Paperclip,
   Smile, Image as ImageIcon, FileText, Info, Search, Pin,
   VolumeX, Trash2, Archive, X, Loader2, Film, File,
+  Phone, Video,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useSocket } from '@/features/socket';
 import { useTyping } from '@/features/socket/hooks/useTyping';
 import { useChatActions } from '../hooks/useChatActions';
 import { selectTypingUsers, messageReceived, selectActiveChatId } from '../store/chatSlice';
 import { useSendMediaMessageMutation } from '../services/chatApi';
+import { outgoingCallStarted, selectIsCallIdle } from '@/features/call';
 
 // ─── Emoji data ───────────────────────────────────────────────────────────────
 
@@ -232,6 +235,25 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
     ? (chat?.participants ?? []).find((p) => p.id?.toString() !== currentUser?.id?.toString())
     : null;
 
+  // ── Calls (direct chats only — group calls need an SFU, P2P won't scale) ──
+  const router     = useRouter();
+  const isCallIdle = useSelector(selectIsCallIdle);
+
+  const startCall = useCallback((callType) => {
+    if (!otherParticipant || !isCallIdle) return;
+    dispatch(outgoingCallStarted({
+      callId:   crypto.randomUUID(),
+      callType,                       // 'audio' | 'video'
+      chatId:   chat?.id?.toString(),
+      peer: {
+        id:     otherParticipant.id?.toString(),
+        name:   otherParticipant.displayName || otherParticipant.name || otherParticipant.username,
+        avatar: otherParticipant.avatar ?? null,
+      },
+    }));
+    router.push(`/call/${callType}`);
+  }, [otherParticipant, isCallIdle, dispatch, chat?.id, router]);
+
   // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
@@ -374,6 +396,28 @@ export function ChatWindow({ chat, messages, onToggleInfo, showInfoPanel, isMobi
         </div>
 
         <div className="flex items-center gap-1">
+          {!isGroupChat && otherParticipant && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => startCall('audio')}
+                disabled={!isCallIdle}
+                title="Voice call"
+              >
+                <Phone className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => startCall('video')}
+                disabled={!isCallIdle}
+                title="Video call"
+              >
+                <Video className="h-5 w-5" />
+              </Button>
+            </>
+          )}
           {!isMobile && (
             <Button variant={showInfoPanel ? 'secondary' : 'ghost'} size="icon" onClick={onToggleInfo}>
               <Info className="h-5 w-5" />

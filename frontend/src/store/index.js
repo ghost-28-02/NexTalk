@@ -5,6 +5,7 @@ import socketReducer from '@/features/socket/store/socketSlice';
 import presenceReducer from '@/features/presence/store/presenceSlice';
 import chatReducer from '@/features/chat/store/chatSlice';
 import notificationReducer from '@/features/notification/store/notificationSlice';
+import callReducer from '@/features/call/store/callSlice';
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     presence:     presenceReducer,
     chat:         chatReducer,
     notification: notificationReducer,
+    call:         callReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
