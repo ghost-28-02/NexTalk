@@ -48,11 +48,6 @@ export default function Home() {
 
                 <main className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
                     <div className="max-w-3xl mx-auto text-center space-y-8">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                            <Zap className="h-4 w-4" />
-                            <span>The future of communication</span>
-                        </div>
-
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-balance">
                             Connect Instantly with <span className="text-primary">NexTalk</span>
                         </h1>
