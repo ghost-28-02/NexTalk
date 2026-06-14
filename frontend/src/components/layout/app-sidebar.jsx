@@ -9,7 +9,7 @@ import { Logo, UserAvatar } from '@/components/common';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  MessageSquare, Users, Bell, Settings, Moon, Sun, LogOut,
+  MessageSquare, Phone, Users, Bell, Settings, Moon, Sun, LogOut,
 } from 'lucide-react';
 import { useLogoutMutation } from '@/features/auth';
 import { selectNotificationUnreadCount } from '@/features/notification/store/notificationSlice';
@@ -72,6 +72,7 @@ export function AppSidebar() {
 
   const navItems = [
     { href: '/chat',          icon: MessageSquare, label: 'Chats' },
+    { href: '/calls',         icon: Phone,         label: 'Calls' },
     { href: '/contacts',      icon: Users,         label: 'Contacts' },
     { href: '/notifications', icon: Bell,          label: 'Notifications', badge: notificationUnreadCount },
   ];

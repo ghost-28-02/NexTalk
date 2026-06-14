@@ -34,10 +34,11 @@ export function IncomingCallModal() {
   useEffect(() => {
     if (!incoming) return;
     const t = setTimeout(() => {
+      // Unanswered ring → logged as a MISSED call (not a decline).
       socket?.emit(CALL_EVENTS.REJECT, {
         callId:       incoming.callId,
         targetUserId: incoming.peer.id,
-        reason:       'rejected',
+        reason:       'missed',
       });
       dispatch(callReset());
     }, RING_TIMEOUT_MS);

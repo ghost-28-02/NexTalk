@@ -62,6 +62,9 @@ const CALL_EVENTS = Object.freeze({
   ACCEPTED:      'call:accepted',
   REJECTED:      'call:rejected',
   ENDED:         'call:ended',
+  // Server → Client: a finished call was persisted to history. Sent to both
+  // participants' personal rooms so their Calls list can refresh.
+  LOGGED:        'call:logged',
 });
 
 const PRESENCE_EVENTS = Object.freeze({

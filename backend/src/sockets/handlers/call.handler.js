@@ -2,6 +2,8 @@ const presenceAdapter = require('../adapters/memory.adapter');
 // FUTURE [Redis]: swap above import for redis.adapter.js — no changes below needed
 const { CALL_EVENTS } = require('../../shared/constants/events');
 const { logger } = require('../../shared/utils/logger');
+const callService = require('../../api/call/call.service');
+const { CALL_LOG_STATUS } = require('../../database/models/CallLog.model');
 
 /**
  * Call handler — WebRTC signaling relay.
@@ -34,11 +36,66 @@ const { logger } = require('../../shared/utils/logger');
 // userId → { callId, peerId, state: 'ringing' | 'active' }
 const activeCalls = new Map();
 
+// ─── Call history metadata ────────────────────────────────────────────────────
+// callId → { callerId, calleeId, callType, chatId, startedAt, answeredAt }
+// Timing lives here while the call is in flight; on a terminal event we compute
+// the final status + duration and persist ONE CallLog. Deleted after finalize
+// so a relayed double-END can't write twice. FUTURE [Redis]: move to Redis too.
+const callMeta = new Map();
+
 const CALL_STATES = Object.freeze({ RINGING: 'ringing', ACTIVE: 'active' });
 
 function clearCall(callId) {
   for (const [uid, call] of activeCalls.entries()) {
     if (call.callId === callId) activeCalls.delete(uid);
+  }
+}
+
+/**
+ * Persist a finished call exactly once, then notify both participants so their
+ * history refreshes. `outcome` is 'declined' for an active reject; anything
+ * else falls back to 'missed' when the call was never answered.
+ *
+ * @param {import('socket.io').Server} io
+ * @param {string} callId
+ * @param {'declined'|'ended'|'disconnect'} outcome
+ */
+async function finalizeCall(io, callId, outcome) {
+  const meta = callMeta.get(callId);
+  if (!meta) return;          // already finalized (idempotent)
+  callMeta.delete(callId);
+
+  const answered = Boolean(meta.answeredAt);
+  const endedAt  = Date.now();
+
+  let status;
+  if (answered)                  status = CALL_LOG_STATUS.ANSWERED;
+  else if (outcome === 'declined') status = CALL_LOG_STATUS.DECLINED;
+  else                           status = CALL_LOG_STATUS.MISSED;
+
+  const duration = answered
+    ? Math.max(0, Math.round((endedAt - meta.answeredAt) / 1000))
+    : 0;
+
+  try {
+    await callService.recordCall({
+      callId,
+      caller:     meta.callerId,
+      callee:     meta.calleeId,
+      callType:   meta.callType,
+      chatId:     meta.chatId,
+      status,
+      startedAt:  new Date(meta.startedAt),
+      answeredAt: answered ? new Date(meta.answeredAt) : null,
+      endedAt:    new Date(endedAt),
+      duration,
+    });
+
+    // Nudge both clients to refresh their Calls list.
+    io.to(`user:${meta.callerId}`).emit(CALL_EVENTS.LOGGED, { callId });
+    io.to(`user:${meta.calleeId}`).emit(CALL_EVENTS.LOGGED, { callId });
+  } catch (err) {
+    logger.error(`[Call] failed to persist ${callId}: ${err.message}`);
   }
 }
 
@@ -76,6 +133,16 @@ function registerCallHandler(io, socket) {
     activeCalls.set(userId,      { callId, peerId: targetUserId, state: CALL_STATES.RINGING });
     activeCalls.set(targetUserId, { callId, peerId: userId,      state: CALL_STATES.RINGING });
 
+    // Start tracking timing for the history record (finalized on terminal event).
+    callMeta.set(callId, {
+      callerId:   userId,
+      calleeId:   targetUserId,
+      callType,
+      chatId:     chatId || null,
+      startedAt:  Date.now(),
+      answeredAt: null,
+    });
+
     const avatar = socket.user.avatar?.url ?? socket.user.avatar ?? null;
 
     toUser(targetUserId).emit(CALL_EVENTS.INCOMING, {
@@ -106,6 +173,10 @@ function registerCallHandler(io, socket) {
     activeCalls.set(userId,       { callId, peerId: targetUserId, state: CALL_STATES.ACTIVE });
     activeCalls.set(targetUserId, { callId, peerId: userId,       state: CALL_STATES.ACTIVE });
 
+    // Stamp the answer time → marks this call 'answered' and starts the duration clock.
+    const meta = callMeta.get(callId);
+    if (meta && !meta.answeredAt) meta.answeredAt = Date.now();
+
     toUser(targetUserId).emit(CALL_EVENTS.ACCEPTED, { callId, fromUserId: userId });
     logger.info(`[Call] ${callId} accepted by ${socket.user.username}`);
   });
@@ -113,11 +184,13 @@ function registerCallHandler(io, socket) {
   // ── REJECT — callee declines ────────────────────────────────────────────────
   socket.on(CALL_EVENTS.REJECT, ({ callId, targetUserId, reason } = {}) => {
     if (!callId || !targetUserId) return;
+    // Only an explicit decline counts as 'declined'; busy / timeout → 'missed'.
+    finalizeCall(io, callId, reason === 'rejected' ? 'declined' : 'ended');
     clearCall(callId);
     toUser(targetUserId).emit(CALL_EVENTS.REJECTED, {
       callId,
       fromUserId: userId,
-      reason: reason || 'rejected', // 'rejected' | 'busy'
+      reason: reason || 'rejected', // 'rejected' | 'busy' | 'missed'
     });
     logger.info(`[Call] ${callId} rejected by ${socket.user.username}`);
   });
@@ -125,6 +198,7 @@ function registerCallHandler(io, socket) {
   // ── END — either side hangs up (also covers caller-cancel while ringing) ───
   socket.on(CALL_EVENTS.END, ({ callId, targetUserId, reason } = {}) => {
     if (!callId || !targetUserId) return;
+    finalizeCall(io, callId, 'ended'); // answered→answered, else→missed
     clearCall(callId);
     toUser(targetUserId).emit(CALL_EVENTS.ENDED, {
       callId,
@@ -157,6 +231,7 @@ function registerCallHandler(io, socket) {
   socket.on('disconnect', () => {
     const call = activeCalls.get(userId);
     if (!call) return;
+    finalizeCall(io, call.callId, 'disconnect'); // answered→answered, else→missed
     clearCall(call.callId);
     toUser(call.peerId).emit(CALL_EVENTS.ENDED, {
       callId:     call.callId,

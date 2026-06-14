@@ -19,6 +19,7 @@ import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSocket } from '@/features/socket';
 import { CALL_EVENTS } from '@/features/socket/constants/socketEvents';
+import { baseApi } from '@/services/baseApi';
 import {
   incomingCallReceived,
   callReset,
@@ -55,12 +56,19 @@ export function useCallSocket() {
       if (statusRef.current === 'incoming') dispatch(callReset());
     };
 
+    // A finished call was persisted server-side → refresh the Calls history list.
+    const onLogged = () => {
+      dispatch(baseApi.util.invalidateTags(['CallHistory']));
+    };
+
     socket.on(CALL_EVENTS.INCOMING, onIncoming);
     socket.on(CALL_EVENTS.ENDED,    onEnded);
+    socket.on(CALL_EVENTS.LOGGED,   onLogged);
 
     return () => {
       socket.off(CALL_EVENTS.INCOMING, onIncoming);
       socket.off(CALL_EVENTS.ENDED,    onEnded);
+      socket.off(CALL_EVENTS.LOGGED,   onLogged);
     };
   }, [socket, dispatch]);
 }

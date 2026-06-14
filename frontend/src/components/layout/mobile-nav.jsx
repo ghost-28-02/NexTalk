@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { cn } from '@/lib/utils';
-import { MessageSquare, Users, Bell, Settings, User } from 'lucide-react';
+import { MessageSquare, Phone, Users, Bell, Settings, User } from 'lucide-react';
 import { selectNotificationUnreadCount } from '@/features/notification/store/notificationSlice';
 
 const navItems = [
     { href: '/chat',          icon: MessageSquare, label: 'Chats' },
+    { href: '/calls',         icon: Phone,         label: 'Calls' },
     { href: '/contacts',      icon: Users,         label: 'Contacts' },
     { href: '/notifications', icon: Bell,          label: 'Alerts', showBadge: true },
     { href: '/settings',      icon: Settings,      label: 'Settings' },

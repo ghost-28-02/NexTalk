@@ -5,6 +5,15 @@ export * from './components';
 export { useCallSocket } from './hooks/useCallSocket';
 export { useWebRTC } from './hooks/useWebRTC';
 
+// Services (call history)
+export {
+  callHistoryApi,
+  useGetCallHistoryQuery,
+  useGetMissedCallCountQuery,
+  useDeleteCallEntryMutation,
+  useClearCallHistoryMutation,
+} from './services/callHistoryApi';
+
 // Store (slice + actions + selectors)
 export {
   default as callReducer,

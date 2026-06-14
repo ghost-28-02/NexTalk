@@ -4,6 +4,7 @@ const userRoutes = require('./user/user.routes');
 const chatRoutes = require('./chat/chat.routes');
 const messageRoutes = require('./message/message.routes');
 const notificationRoutes = require('./notification/notification.routes');
+const callRoutes = require('./call/call.routes');
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use('/users', userRoutes);
 router.use('/chats', chatRoutes);
 router.use('/chats/:chatId/messages', messageRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/calls', callRoutes);
 
 module.exports = router;

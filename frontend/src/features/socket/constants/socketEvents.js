@@ -47,6 +47,7 @@ export const CALL_EVENTS = Object.freeze({
   ACCEPTED:      'call:accepted',
   REJECTED:      'call:rejected',
   ENDED:         'call:ended',
+  LOGGED:        'call:logged', // a finished call was persisted → refresh history
 });
 
 export const PRESENCE_EVENTS = Object.freeze({
