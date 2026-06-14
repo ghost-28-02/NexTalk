@@ -39,7 +39,7 @@ export default function Home() {
                 <header className="p-6 flex items-center justify-between">
                     <Logo size="md" />
                     <Link href="/login">
-                        <Button variant="ghost" className="gap-2">
+                        <Button size="lg" variant="outline" className="gap-2 px-5">
                             Sign In
                             <ArrowRight className="h-4 w-4" />
                         </Button>
@@ -74,7 +74,7 @@ export default function Home() {
                             </Link>
 
                             <Link href="/login">
-                                <Button size="lg" variant="outline" className="gap-2">
+                                <Button size="lg" variant="outline" className="gap-2 px-13">
                                     Sign In
                                 </Button>
                             </Link>
