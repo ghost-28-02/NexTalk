@@ -41,7 +41,7 @@ The backend follows a clean, **feature-modular architecture** (API modules, repo
 ### Messaging
 - Real-time **one-to-one** and **group** conversations over Socket.IO
 - **Typing indicators**, **delivery** and **read receipts**
-- **Media messages** — image / file uploads via Cloudinary (or local/Supabase adapters)
+- **Media messages** — images / video via Cloudinary and document / file attachments via Supabase Storage
 - **Edit** and **delete** messages, with broadcast sync across devices
 - **Emoji reactions** on messages
 - **Pin**, **mute**, and **leave** conversations
@@ -104,8 +104,8 @@ The backend follows a clean, **feature-modular architecture** (API modules, repo
 | Socket.IO | 4.8.3 | Real-time WebSocket layer |
 | JSON Web Token | 9.0.3 | Authentication tokens |
 | Bcrypt | 6.0.0 | Password hashing |
-| Cloudinary | 2.8.0 | Media cloud storage |
-| Supabase JS | 2.106.2 | Alternative storage adapter |
+| Cloudinary | 2.8.0 | Image & video (media) storage |
+| Supabase JS | 2.106.2 | File / document storage |
 | Nodemailer | 8.0.8 | Email transport |
 | OTP Generator | 4.0.1 | One-time password generation |
 | Helmet | 8.2.0 | HTTP security headers |
@@ -121,7 +121,7 @@ The backend follows a clean, **feature-modular architecture** (API modules, repo
 
 NexTalk is split into two independently deployable applications.
 
-The **backend** uses a layered, feature-modular design. Each domain (`auth`, `user`, `chat`, `message`, `notification`, `call`) lives in its own folder under `src/api/` with routes, controllers, services, DTOs, and validation. Data access is isolated behind a **repository** layer (`src/database/repositories/`), and cross-cutting concerns — email and file upload — are implemented as **pluggable adapters** (`brevo` / `console` for email; `cloudinary` / `local` / `supabase` for uploads), selectable by environment variable. Real-time logic lives in `src/sockets/`, with dedicated handlers per domain and a swappable `memory` / `redis` adapter for horizontal scaling.
+The **backend** uses a layered, feature-modular design. Each domain (`auth`, `user`, `chat`, `message`, `notification`, `call`) lives in its own folder under `src/api/` with routes, controllers, services, DTOs, and validation. Data access is isolated behind a **repository** layer (`src/database/repositories/`), and cross-cutting concerns — email and file upload — are implemented as **pluggable adapters** (`brevo` / `console` for email; `cloudinary` for media, `supabase` for file attachments, plus a `local` fallback), selectable by environment variable. Real-time logic lives in `src/sockets/`, with dedicated handlers per domain and a swappable `memory` / `redis` adapter for horizontal scaling.
 
 The **frontend** uses a **feature-sliced** structure under `src/features/` (e.g. `auth`, `chat`, `call`, `notification`, `presence`, `socket`), each bundling its own components, hooks, services, and Redux slice. The App Router groups routes into `(auth)` and `(main)` segments, and a central `SocketProvider` shares a single Socket.IO connection across features.
 
@@ -203,11 +203,19 @@ JWT_REFRESH_SECRET=your_refresh_token_secret_here
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
-# ── Cloudinary (optional — uploads fail without it) ───────
+# ── Storage / Uploads ─────────────────────────────────────
+# Cloudinary handles images & video (media); Supabase handles file attachments.
+
+# Cloudinary — media (images / video)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 FOLDER_NAME=NexTalk
+
+# Supabase Storage — file / document attachments
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key   # Settings → API
+SUPABASE_BUCKET=nextalk-files
 
 # ── Email ─────────────────────────────────────────────────
 # 'console' prints emails to the terminal (dev); 'brevo' sends real emails (prod)
@@ -284,7 +292,7 @@ NexTalk/
 │       ├── shared/
 │       │   ├── constants/            # events, roles, status
 │       │   ├── email/                # Email service + adapters + templates
-│       │   ├── upload/               # Upload manager + cloudinary/local/supabase adapters
+│       │   ├── upload/               # Upload manager + cloudinary/supabase/local adapters
 │       │   ├── helpers/              # otp, token, file helpers
 │       │   └── utils/                # logger, pagination, async-handler
 │       ├── sockets/                   # Real-time layer
