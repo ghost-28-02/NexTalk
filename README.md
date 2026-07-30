@@ -10,6 +10,8 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06B6D4?logo=tailwindcss&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
+🔗 **Live Demo:** [nex-talk-khaki.vercel.app](https://nex-talk-khaki.vercel.app/)
+
 **NexTalk** is a full-stack, real-time **messaging and calling platform** — a modern WhatsApp-style experience built for the web. It pairs a **Next.js 16 / React 19** client with an **Express 5** API and a **Socket.IO** real-time layer, delivering instant one-to-one and group chat, WebRTC audio/video calls, presence, typing indicators, read receipts, and push-style notifications.
 
 The backend follows a clean, **feature-modular architecture** (API modules, repositories, services, socket handlers, and pluggable adapters for email/upload), while the frontend uses a **feature-sliced** structure with Redux Toolkit and shadcn/ui.
